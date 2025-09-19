@@ -1,4 +1,12 @@
-import { useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import {
+    useCallback,
+    useContext,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { ElementRect } from '@/commands';
 import { ocrDetect, OcrDetectResult } from '@/commands/ocr';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -43,6 +51,7 @@ export type OcrResultActionType = {
     clear: () => void;
     updateOcrTextElements: (ocrResult: OcrDetectResult, ignoreScale?: boolean) => void;
     getOcrResult: () => AppOcrResult | undefined;
+    getSelectedText: () => string | undefined;
 };
 
 export const covertOcrResultToText = (ocrResult: OcrDetectResult) => {
@@ -58,23 +67,37 @@ export enum OcrDetectAfterAction {
     CopyTextAndCloseWindow = 'copyTextAndCloseWindow',
 }
 
-const stopPropagation: HTMLDivElement['onmousedown'] = (e) => {
-    e.stopPropagation();
-};
-
 export const OcrResult: React.FC<{
     zIndex: number;
     actionRef: React.RefObject<OcrResultActionType | undefined>;
     onOcrDetect?: (ocrResult: OcrDetectResult) => void;
-    onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
+    onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
     onWheel?: (event: React.WheelEvent<HTMLDivElement>) => void;
-}> = ({ zIndex, actionRef, onOcrDetect, onContextMenu: onContextMenuProp, onWheel }) => {
+    enableCopy?: boolean;
+    disabled?: boolean;
+    onMouseDown?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    onMouseMove?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    onMouseUp?: (event: React.MouseEvent<HTMLDivElement>) => void;
+}> = ({
+    zIndex,
+    actionRef,
+    onOcrDetect,
+    onContextMenu: onContextMenuProp,
+    onWheel,
+    enableCopy,
+    disabled,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp,
+}) => {
     const intl = useIntl();
     const { token } = theme.useToken();
     const { message } = useContext(AntdContext);
 
     const containerElementRef = useRef<HTMLDivElement>(null);
     const textContainerElementRef = useRef<HTMLDivElement>(null);
+    const textIframeContainerElementRef = useRef<HTMLIFrameElement>(null);
+    const [textContainerContent, setTextContainerContent] = useState('');
 
     const [getAppSettings] = useStateSubscriber(AppSettingsPublisher, undefined);
 
@@ -104,7 +127,7 @@ export const OcrResult: React.FC<{
     const selectRectRef = useRef<ElementRect>(undefined);
     const monitorScaleFactorRef = useRef<number>(undefined);
     const updateOcrTextElements = useCallback(
-        (ocrResult: OcrDetectResult, ignoreScale?: boolean) => {
+        async (ocrResult: OcrDetectResult, ignoreScale?: boolean) => {
             const monitorScaleFactor = monitorScaleFactorRef.current;
             const selectRect = selectRectRef.current;
 
@@ -123,122 +146,139 @@ export const OcrResult: React.FC<{
             const baseY = selectRect.min_y * transformScale;
 
             const textContainerElement = textContainerElementRef.current;
-            if (!textContainerElement) {
+            const textIframeContainerElement = textIframeContainerElementRef.current;
+            if (!textContainerElement || !textIframeContainerElement) {
                 return;
             }
 
-            textContainerElement.style.left = `${baseX}px`;
-            textContainerElement.style.top = `${baseY}px`;
-            textContainerElement.style.width = `${(selectRect.max_x - selectRect.min_x) * transformScale}px`;
-            textContainerElement.style.height = `${(selectRect.max_y - selectRect.min_y) * transformScale}px`;
-
             textContainerElement.innerHTML = '';
 
-            ocrResult.text_blocks.map((block) => {
-                if (isNaN(block.text_score) || block.text_score < 0.3) {
-                    return null;
-                }
+            textContainerElement.style.left = textIframeContainerElement.style.left = `${baseX}px`;
+            textContainerElement.style.top = textIframeContainerElement.style.top = `${baseY}px`;
+            textContainerElement.style.width =
+                textIframeContainerElement.style.width = `${(selectRect.max_x - selectRect.min_x) * transformScale}px`;
+            textContainerElement.style.height =
+                textIframeContainerElement.style.height = `${(selectRect.max_y - selectRect.min_y) * transformScale}px`;
 
-                const rectLeftTopX = block.box_points[0].x * transformScale;
-                const rectLeftTopY = block.box_points[0].y * transformScale;
-                const rectRightTopX = block.box_points[1].x * transformScale;
-                const rectRightTopY = block.box_points[1].y * transformScale;
-                const rectRightBottomX = block.box_points[2].x * transformScale;
-                const rectRightBottomY = block.box_points[2].y * transformScale;
-                const rectLeftBottomX = block.box_points[3].x * transformScale;
-                const rectLeftBottomY = block.box_points[3].y * transformScale;
-
-                // 计算矩形中心点
-                const centerX =
-                    (rectLeftTopX + rectRightTopX + rectRightBottomX + rectLeftBottomX) / 4;
-                const centerY =
-                    (rectLeftTopY + rectRightTopY + rectRightBottomY + rectLeftBottomY) / 4;
-
-                // 计算矩形旋转角度 (使用顶边与水平线的夹角)
-                const rotationRad = Math.atan2(
-                    rectRightTopY - rectLeftTopY,
-                    rectRightTopX - rectLeftTopX,
-                );
-                let rotationDeg = rotationRad * (180 / Math.PI);
-
-                // 如果旋转角度小于阈值，则视为误差，不进行旋转
-                if (Math.abs(rotationDeg) < ROTATION_THRESHOLD) {
-                    rotationDeg = 0;
-                }
-
-                // 计算宽度和高度
-                const width = Math.sqrt(
-                    Math.pow(rectRightTopX - rectLeftTopX, 2) +
-                        Math.pow(rectRightTopY - rectLeftTopY, 2),
-                );
-                const height = Math.sqrt(
-                    Math.pow(rectLeftBottomX - rectLeftTopX, 2) +
-                        Math.pow(rectLeftBottomY - rectLeftTopY, 2),
-                );
-
-                textContainerElement.style.opacity = '0';
-
-                const textElement = document.createElement('div');
-                textElement.innerText = block.text;
-                textElement.style.color = token.colorText;
-                textElement.style.display = 'inline-block';
-
-                const textWrapElement = document.createElement('div');
-                const textBackgroundElement = document.createElement('div');
-                textBackgroundElement.style.position = textWrapElement.style.position = 'absolute';
-                textBackgroundElement.style.width = textWrapElement.style.width = `${width}px`;
-                textBackgroundElement.style.height = textWrapElement.style.height = `${height}px`;
-                textBackgroundElement.style.transformOrigin =
-                    textWrapElement.style.transformOrigin = 'center';
-
-                textWrapElement.style.display = 'flex';
-                textWrapElement.style.alignItems = 'center';
-                textWrapElement.style.justifyContent = 'center';
-                textWrapElement.style.backgroundColor = 'transparent';
-                textWrapElement.style.zIndex = '1';
-
-                textBackgroundElement.style.backgroundColor = Color(token.colorBgContainer)
-                    .alpha(0.42)
-                    .toString();
-                textBackgroundElement.style.backdropFilter = 'blur(3.6px)';
-
-                const isVertical = !ignoreScale && height > width * 1.5;
-                if (isVertical) {
-                    textWrapElement.style.writingMode = 'vertical-rl';
-                }
-
-                if (ignoreScale) {
-                    textElement.style.whiteSpace = 'normal';
-                    textElement.style.fontSize = '16px';
-                    textElement.style.wordBreak = 'break-all';
-                } else {
-                    textElement.style.fontSize = '12px';
-                    textElement.style.whiteSpace = 'nowrap';
-                    textWrapElement.style.textAlign = 'center';
-                }
-
-                textElement.onmousedown = stopPropagation;
-
-                textWrapElement.appendChild(textElement);
-                textContainerElement.appendChild(textBackgroundElement);
-                textContainerElement.appendChild(textWrapElement);
-
-                requestAnimationFrame(() => {
-                    let textWidth = textElement.clientWidth;
-                    let textHeight = textElement.clientHeight;
-                    if (isVertical) {
-                        textWidth -= 3;
-                    } else {
-                        textHeight -= 3;
+            await Promise.all(
+                ocrResult.text_blocks.map(async (block) => {
+                    if (isNaN(block.text_score) || block.text_score < 0.3) {
+                        return null;
                     }
 
-                    const scale = Math.min(height / textHeight, width / textWidth);
-                    textElement.style.transform = `scale(${scale})`;
-                    textBackgroundElement.style.transform =
-                        textWrapElement.style.transform = `translate(${centerX - width * 0.5}px, ${centerY - height * 0.5}px) rotate(${rotationDeg}deg)`;
-                    textContainerElement.style.opacity = '1';
-                });
-            });
+                    const rectLeftTopX = block.box_points[0].x * transformScale;
+                    const rectLeftTopY = block.box_points[0].y * transformScale;
+                    const rectRightTopX = block.box_points[1].x * transformScale;
+                    const rectRightTopY = block.box_points[1].y * transformScale;
+                    const rectRightBottomX = block.box_points[2].x * transformScale;
+                    const rectRightBottomY = block.box_points[2].y * transformScale;
+                    const rectLeftBottomX = block.box_points[3].x * transformScale;
+                    const rectLeftBottomY = block.box_points[3].y * transformScale;
+
+                    // 计算矩形中心点
+                    const centerX =
+                        (rectLeftTopX + rectRightTopX + rectRightBottomX + rectLeftBottomX) / 4;
+                    const centerY =
+                        (rectLeftTopY + rectRightTopY + rectRightBottomY + rectLeftBottomY) / 4;
+
+                    // 计算矩形旋转角度 (使用顶边与水平线的夹角)
+                    const rotationRad = Math.atan2(
+                        rectRightTopY - rectLeftTopY,
+                        rectRightTopX - rectLeftTopX,
+                    );
+                    let rotationDeg = rotationRad * (180 / Math.PI);
+
+                    // 如果旋转角度小于阈值，则视为误差，不进行旋转
+                    if (Math.abs(rotationDeg) < ROTATION_THRESHOLD) {
+                        rotationDeg = 0;
+                    }
+
+                    // 计算宽度和高度
+                    const width = Math.sqrt(
+                        Math.pow(rectRightTopX - rectLeftTopX, 2) +
+                            Math.pow(rectRightTopY - rectLeftTopY, 2),
+                    );
+                    const height = Math.sqrt(
+                        Math.pow(rectLeftBottomX - rectLeftTopX, 2) +
+                            Math.pow(rectLeftBottomY - rectLeftTopY, 2),
+                    );
+
+                    const textElement = document.createElement('div');
+                    textElement.innerText = block.text;
+                    textElement.style.color = token.colorText;
+                    textElement.style.display = 'inline-block';
+
+                    const textWrapElement = document.createElement('div');
+                    const textBackgroundElement = document.createElement('div');
+                    textBackgroundElement.style.position = textWrapElement.style.position =
+                        'absolute';
+                    textBackgroundElement.style.width = textWrapElement.style.width = `${width}px`;
+                    textBackgroundElement.style.height =
+                        textWrapElement.style.height = `${height}px`;
+                    textBackgroundElement.style.transformOrigin =
+                        textWrapElement.style.transformOrigin = 'center';
+
+                    textWrapElement.style.display = 'flex';
+                    textWrapElement.style.alignItems = 'center';
+                    textWrapElement.style.justifyContent = 'center';
+                    textWrapElement.style.backgroundColor = 'transparent';
+                    textWrapElement.style.zIndex = '1';
+
+                    textBackgroundElement.style.backgroundColor = Color(token.colorBgContainer)
+                        .alpha(0.42)
+                        .toString();
+                    textBackgroundElement.style.backdropFilter = 'blur(3.6px)';
+
+                    const isVertical = !ignoreScale && height > width * 1.5;
+                    if (isVertical) {
+                        textWrapElement.style.writingMode = 'vertical-rl';
+                    }
+
+                    if (ignoreScale) {
+                        textElement.style.whiteSpace = 'normal';
+                        textElement.style.fontSize = '16px';
+                        textElement.style.wordBreak = 'break-all';
+                    } else {
+                        textElement.style.fontSize = '12px';
+                        textElement.style.whiteSpace = 'nowrap';
+                        textWrapElement.style.textAlign = 'center';
+                    }
+
+                    textElement.setAttribute('onmousedown', 'event.stopPropagation();');
+                    textElement.style.cursor = 'text';
+
+                    textWrapElement.appendChild(textElement);
+                    textContainerElement.appendChild(textBackgroundElement);
+                    textContainerElement.appendChild(textWrapElement);
+
+                    await new Promise((resolve) => {
+                        requestAnimationFrame(() => {
+                            let textWidth = textElement.clientWidth;
+                            let textHeight = textElement.clientHeight;
+                            if (isVertical) {
+                                textWidth -= 3;
+                            } else {
+                                textHeight -= 3;
+                            }
+
+                            const scale = Math.min(height / textHeight, width / textWidth);
+                            textElement.style.transform = `scale(${scale})`;
+                            const leftWidth = Math.max(0, width - (textWidth + 16) * scale); // 文本的宽度可能小于 OCR 识别的宽度
+                            let letterSpaceWidth = 0;
+                            if (textElement.innerText.length > 1) {
+                                letterSpaceWidth =
+                                    leftWidth / (textElement.innerText.length - 1) / scale;
+                            }
+                            textElement.style.letterSpacing = `${letterSpaceWidth}px`;
+                            textBackgroundElement.style.transform =
+                                textWrapElement.style.transform = `translate(${centerX - width * 0.5}px, ${centerY - height * 0.5}px) rotate(${rotationDeg}deg)`;
+
+                            resolve(undefined);
+                        });
+                    });
+                }),
+            );
+            setTextContainerContent(textContainerElement.innerHTML);
         },
         [token.colorBgContainer, token.colorText],
     );
@@ -330,6 +370,14 @@ export const OcrResult: React.FC<{
         [getAppSettings, onOcrDetect, updateOcrTextElements],
     );
 
+    const selectedTextRef = useRef<string>(undefined);
+    const getSelectedText = useCallback(() => {
+        return textIframeContainerElementRef.current?.contentWindow
+            ?.getSelection()
+            ?.toString()
+            .trim();
+    }, []);
+
     useImperativeHandle(
         actionRef,
         () => ({
@@ -347,6 +395,7 @@ export const OcrResult: React.FC<{
             setEnable,
             setScale,
             clear: () => {
+                setTextContainerContent('');
                 if (textContainerElementRef.current) {
                     textContainerElementRef.current.innerHTML = '';
                 }
@@ -355,13 +404,26 @@ export const OcrResult: React.FC<{
             getOcrResult: () => {
                 return currentOcrResultRef.current;
             },
+            getSelectedText,
         }),
-        [initDrawCanvas, initImage, message, setEnable, setScale, updateOcrTextElements],
+        [
+            getSelectedText,
+            initDrawCanvas,
+            initImage,
+            message,
+            setEnable,
+            setScale,
+            updateOcrTextElements,
+        ],
     );
 
     const menuRef = useRef<Menu>(undefined);
 
     const initMenu = useCallback(async () => {
+        if (disabled) {
+            return;
+        }
+
         if (menuRef.current) {
             await menuRef.current.close();
             menuRef.current = undefined;
@@ -375,13 +437,13 @@ export const OcrResult: React.FC<{
                     id: `${appWindow.label}-copySelectedText`,
                     text: intl.formatMessage({ id: 'draw.copySelectedText' }),
                     action: async () => {
-                        writeTextToClipboard(window.getSelection()?.toString() || '');
+                        writeTextToClipboard(selectedTextRef.current || '');
                     },
                 },
             ],
         });
         menuRef.current = menu;
-    }, [intl]);
+    }, [disabled, intl]);
 
     useEffect(() => {
         initMenu();
@@ -401,10 +463,12 @@ export const OcrResult: React.FC<{
 
             event.preventDefault();
 
-            const selection = window.getSelection();
-            if (containerElementRef.current && selection) {
-                const range = document.createRange();
-                range.selectNodeContents(containerElementRef.current);
+            const selection = textIframeContainerElementRef.current?.contentWindow?.getSelection();
+            const targetElement = textIframeContainerElementRef.current?.contentDocument;
+            if (containerElementRef.current && selection && targetElement) {
+                textIframeContainerElementRef.current?.focus();
+                const range = targetElement.createRange();
+                range.selectNodeContents(targetElement.body);
                 selection.removeAllRanges();
                 selection.addRange(range);
             }
@@ -419,20 +483,20 @@ export const OcrResult: React.FC<{
         ),
     );
 
-    const onContextMenu = useCallback(
-        (e: React.MouseEvent<HTMLDivElement>) => {
-            e.preventDefault();
-            e.stopPropagation();
+    const onContextMenu = useCallback(() => {
+        selectedTextRef.current = getSelectedText();
+        if (selectedTextRef.current) {
+            menuRef.current?.popup();
+            return;
+        }
 
-            if (window.getSelection()?.toString()) {
-                menuRef.current?.popup();
-                return;
-            }
-
-            onContextMenuProp?.(e);
-        },
-        [onContextMenuProp],
-    );
+        onContextMenuProp?.({
+            preventDefault: () => {},
+            stopPropagation: () => {},
+            clientX: 0,
+            clientY: 0,
+        } as React.MouseEvent<HTMLDivElement>);
+    }, [getSelectedText, onContextMenuProp]);
 
     const onDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         // 阻止截图双击复制和固定到屏幕双击缩放的操作
@@ -440,6 +504,92 @@ export const OcrResult: React.FC<{
         e.stopPropagation();
     }, []);
 
+    useEffect(() => {
+        if (disabled) {
+            return;
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            const { type } = event.data;
+
+            if (type === 'contextMenu') {
+                onContextMenu();
+            } else if (type === 'keydown' || type === 'keyup') {
+                // 创建并触发自定义键盘事件
+                const keyEvent = new KeyboardEvent(type, {
+                    key: event.data.key,
+                    code: event.data.code,
+                    keyCode: event.data.keyCode,
+                    ctrlKey: event.data.ctrlKey,
+                    shiftKey: event.data.shiftKey,
+                    altKey: event.data.altKey,
+                    metaKey: event.data.metaKey,
+                    repeat: event.data.repeat,
+                    bubbles: true,
+                    cancelable: true,
+                });
+                document.dispatchEvent(keyEvent);
+            } else if (type === 'mousedown') {
+                // 重新组装鼠标事件对象，模拟React.MouseEvent
+                const mouseEvent = {
+                    clientX: event.data.clientX,
+                    clientY: event.data.clientY,
+                    button: event.data.button,
+                    buttons: event.data.buttons,
+                    ctrlKey: event.data.ctrlKey,
+                    shiftKey: event.data.shiftKey,
+                    altKey: event.data.altKey,
+                    metaKey: event.data.metaKey,
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as React.MouseEvent<HTMLDivElement>;
+                onMouseDown?.(mouseEvent);
+            } else if (type === 'mousemove') {
+                // 重新组装鼠标移动事件对象
+                const mouseEvent = {
+                    clientX: event.data.clientX,
+                    clientY: event.data.clientY,
+                    button: event.data.button,
+                    buttons: event.data.buttons,
+                    ctrlKey: event.data.ctrlKey,
+                    shiftKey: event.data.shiftKey,
+                    altKey: event.data.altKey,
+                    metaKey: event.data.metaKey,
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as React.MouseEvent<HTMLDivElement>;
+                onMouseMove?.(mouseEvent);
+            } else if (type === 'mouseup') {
+                // 重新组装鼠标释放事件对象
+                const mouseEvent = {
+                    clientX: event.data.clientX,
+                    clientY: event.data.clientY,
+                    button: event.data.button,
+                    buttons: event.data.buttons,
+                    ctrlKey: event.data.ctrlKey,
+                    shiftKey: event.data.shiftKey,
+                    altKey: event.data.altKey,
+                    metaKey: event.data.metaKey,
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as React.MouseEvent<HTMLDivElement>;
+                onMouseUp?.(mouseEvent);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        return () => {
+            window.removeEventListener('message', handleMessage);
+        };
+    }, [disabled, onContextMenu, onMouseDown, onMouseMove, onMouseUp]);
+
+    const handleContainerContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+    }, []);
+
+    const enableDrag = !!(onMouseDown && onMouseMove && onMouseUp);
     return (
         <>
             <div
@@ -452,8 +602,8 @@ export const OcrResult: React.FC<{
                     height: '100%',
                 }}
                 className="ocr-result-container"
-                onContextMenu={onContextMenu}
                 ref={containerElementRef}
+                onContextMenu={handleContainerContextMenu}
                 onWheel={onWheel}
             >
                 <div
@@ -463,9 +613,151 @@ export const OcrResult: React.FC<{
                         position: 'absolute',
                         top: 0,
                         left: 0,
+                        opacity: 0,
                     }}
                     onDoubleClick={onDoubleClick}
+                    className="ocr-result-text-container"
+                ></div>
+                <iframe
+                    ref={textIframeContainerElementRef}
+                    style={{
+                        transformOrigin: 'top left',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        opacity: 1,
+                    }}
+                    className="ocr-result-text-iframe"
+                    srcDoc={`${textContainerContent}
+                        <style>
+                            html {
+                                height: 100%;
+                                width: 100%;
+                            }
+                            body {
+                                height: 100%;
+                                width: 100%;
+                                padding: 0;
+                                margin: 0;
+                                border: none;
+                                overflow: hidden;
+                                ${enableDrag ? 'cursor: grab;' : ''}
+                            }
+                            body:active {
+                                ${enableDrag ? 'cursor: grabbing;' : ''}
+                            }
+
+                            * {
+                                -webkit-user-select: text !important;
+                                -moz-user-select: text !important;
+                                -ms-user-select: text !important;
+                                user-select: text !important;
+                            }
+                        </style>
+                        <script>
+                            document.oncopy = (e) => {
+                                if (${enableCopy}) {
+                                    return;
+                                }
+
+                                e.preventDefault();
+                            };
+
+                            document.oncontextmenu = (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.parent.postMessage({
+                                    type: 'contextMenu',
+                                    eventData: {
+                                        type: 'contextmenu',
+                                        clientX: e.clientX,
+                                        clientY: e.clientY,
+                                    }
+                                }, '*');
+                            };
+
+                            document.addEventListener('mousedown', (e) => {
+                                window.parent.postMessage({
+                                    type: 'mousedown',
+                                    clientX: e.clientX,
+                                    clientY: e.clientY,
+                                    button: e.button,
+                                    buttons: e.buttons,
+                                    ctrlKey: e.ctrlKey,
+                                    shiftKey: e.shiftKey,
+                                    altKey: e.altKey,
+                                    metaKey: e.metaKey,
+                                }, '*');
+                            });
+
+                            document.addEventListener('mousemove', (e) => {
+                                window.parent.postMessage({
+                                    type: 'mousemove',
+                                    clientX: e.clientX,
+                                    clientY: e.clientY,
+                                    button: e.button,
+                                    buttons: e.buttons,
+                                    ctrlKey: e.ctrlKey,
+                                    shiftKey: e.shiftKey,
+                                    altKey: e.altKey,
+                                    metaKey: e.metaKey,
+                                }, '*');
+                            });
+
+                            document.addEventListener('mouseup', (e) => {
+                                window.parent.postMessage({
+                                    type: 'mouseup',
+                                    clientX: e.clientX,
+                                    clientY: e.clientY,
+                                    button: e.button,
+                                    buttons: e.buttons,
+                                    ctrlKey: e.ctrlKey,
+                                    shiftKey: e.shiftKey,
+                                    altKey: e.altKey,
+                                    metaKey: e.metaKey,
+                                }, '*');
+                            });
+
+                            // 转发键盘事件到父窗口
+                            document.addEventListener('keydown', (e) => {
+                                window.parent.postMessage({
+                                    type: 'keydown',
+                                    key: e.key,
+                                    code: e.code,
+                                    keyCode: e.keyCode,
+                                    ctrlKey: e.ctrlKey,
+                                    shiftKey: e.shiftKey,
+                                    altKey: e.altKey,
+                                    metaKey: e.metaKey,
+                                    repeat: e.repeat,
+                                }, '*');
+                            });
+
+                            document.addEventListener('keyup', (e) => {
+                                window.parent.postMessage({
+                                    type: 'keyup',
+                                    key: e.key,
+                                    code: e.code,
+                                    keyCode: e.keyCode,
+                                    ctrlKey: e.ctrlKey,
+                                    shiftKey: e.shiftKey,
+                                    altKey: e.altKey,
+                                    metaKey: e.metaKey,
+                                }, '*');
+                            });
+                        </script>
+                    `}
                 />
+
+                <style jsx>{`
+                    .ocr-result-text-iframe {
+                        width: 100%;
+                        height: 100%;
+                        padding: 0;
+                        margin: 0;
+                        border: none;
+                    }
+                `}</style>
             </div>
         </>
     );

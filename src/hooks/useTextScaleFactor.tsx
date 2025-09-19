@@ -74,8 +74,8 @@ export const useContentScale = (
     const [textScaleFactor, devicePixelRatio] = useTextScaleFactor();
     const [contentScale, setContentScale, contentScaleRef] = useStateRef(1);
 
-    const [uiScale, setUiScale] = useState(1);
-    const [toolbarUiScale, setToolbarUiScale] = useState(1);
+    const [uiScale, setUiScale] = useState<number>();
+    const [toolbarUiScale, setToolbarUiScale] = useState<number>();
 
     useAppSettingsLoad(
         useCallback((settings) => {
@@ -86,6 +86,10 @@ export const useContentScale = (
     );
 
     useEffect(() => {
+        if (!uiScale || !toolbarUiScale) {
+            return;
+        }
+
         setContentScale(
             calculateContentScale(monitorScaleFactor, textScaleFactor, devicePixelRatio) *
                 (uiScale / 100) *
