@@ -123,13 +123,13 @@ export const generateSerialNumber = (
     let textHeight = 20 * sizeScale;
     const fontSize = appState.currentItemFontSize;
     if (fontSize <= 16) {
-        textHeight = 21;
+        textHeight = 21 * (fontSize / 16);
     } else if (fontSize <= 20) {
-        textHeight = 26;
+        textHeight = 26 * (fontSize / 20);
     } else if (fontSize <= 28) {
-        textHeight = 36;
+        textHeight = 36 * (fontSize / 28);
     } else if (fontSize <= 36) {
-        textHeight = 46;
+        textHeight = 46 * (fontSize / 36);
     }
 
     if (appState.currentItemFontFamily === 6) {
