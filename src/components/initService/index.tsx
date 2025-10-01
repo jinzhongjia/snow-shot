@@ -2,7 +2,7 @@
 
 import { AppSettingsData, AppSettingsGroup } from '@/app/contextWrap';
 import { initUiElements } from '@/commands';
-import { autoStartDisable, autoStartEnable } from '@/commands/core';
+import { autoStartDisable, autoStartEnable, setEnableProxy } from '@/commands/core';
 import { ocrInit } from '@/commands/ocr';
 import { videoRecordInit } from '@/commands/videoRecord';
 import { useAppSettingsLoad } from '@/hooks/useAppSettingsLoad';
@@ -19,6 +19,7 @@ export const InitService = () => {
 
     const hasClearedCaptureHistory = useRef(false);
     const hasInitAutoStart = useRef(false);
+    const hasInitEnableProxy = useRef(false);
     useAppSettingsLoad(
         useCallback(
             (appSettings, prevAppSettings) => {
@@ -28,6 +29,16 @@ export const InitService = () => {
                     hasClearedCaptureHistory.current = true;
 
                     clearCaptureHistory(appSettings);
+                }
+
+                if (
+                    !hasInitEnableProxy.current ||
+                    appSettings[AppSettingsGroup.SystemNetwork].enableProxy !==
+                        prevAppSettings?.[AppSettingsGroup.SystemNetwork].enableProxy
+                ) {
+                    hasInitEnableProxy.current = true;
+
+                    setEnableProxy(appSettings[AppSettingsGroup.SystemNetwork].enableProxy);
                 }
 
                 if (

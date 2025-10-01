@@ -22,7 +22,6 @@ import {
 import React from 'react';
 import { defaultKeyEventSettings, KeyEventKey, KeyEventValue } from '@/core/hotKeys';
 import { TranslationDomain, TranslationType } from '@/services/tools/translation';
-import { setEnableProxy } from '@/commands/core';
 import {
     ChatApiConfig,
     FOCUS_WINDOW_APP_NAME_ENV_VARIABLE,
@@ -1166,10 +1165,6 @@ const ContextWrapCore: React.FC<{ children: React.ReactNode }> = ({ children }) 
                             : (prevSettings?.enableProxy ??
                               defaultAppSettingsData[group].enableProxy),
                 };
-
-                if (saveToFile) {
-                    setEnableProxy(settings.enableProxy);
-                }
             } else if (group === AppSettingsGroup.FunctionChat) {
                 newSettings = newSettings as AppSettingsData[typeof group];
                 const prevSettings = appSettingsRef.current[group] as
