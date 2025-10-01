@@ -2,6 +2,7 @@
 
 import { AppSettingsData, AppSettingsGroup } from '@/app/contextWrap';
 import { initUiElements } from '@/commands';
+import { autoStartDisable, autoStartEnable, setEnableProxy } from '@/commands/core';
 import { ocrInit } from '@/commands/ocr';
 import { videoRecordInit } from '@/commands/videoRecord';
 import { useAppSettingsLoad } from '@/hooks/useAppSettingsLoad';
@@ -17,15 +18,42 @@ export const InitService = () => {
     }, []);
 
     const hasClearedCaptureHistory = useRef(false);
+    const hasInitAutoStart = useRef(false);
+    const hasInitEnableProxy = useRef(false);
     useAppSettingsLoad(
         useCallback(
-            (appSettings) => {
+            (appSettings, prevAppSettings) => {
                 ocrInit(appSettings[AppSettingsGroup.SystemScreenshot].ocrModel);
 
                 if (!hasClearedCaptureHistory.current) {
                     hasClearedCaptureHistory.current = true;
 
                     clearCaptureHistory(appSettings);
+                }
+
+                if (
+                    !hasInitEnableProxy.current ||
+                    appSettings[AppSettingsGroup.SystemNetwork].enableProxy !==
+                        prevAppSettings?.[AppSettingsGroup.SystemNetwork].enableProxy
+                ) {
+                    hasInitEnableProxy.current = true;
+
+                    setEnableProxy(appSettings[AppSettingsGroup.SystemNetwork].enableProxy);
+                }
+
+                if (
+                    process.env.NODE_ENV !== 'development' &&
+                    (!hasInitAutoStart.current ||
+                        appSettings[AppSettingsGroup.SystemCommon].autoStart !==
+                            prevAppSettings?.[AppSettingsGroup.SystemCommon].autoStart)
+                ) {
+                    hasInitAutoStart.current = true;
+
+                    if (appSettings[AppSettingsGroup.SystemCommon].autoStart) {
+                        autoStartEnable();
+                    } else {
+                        autoStartDisable();
+                    }
                 }
             },
             [clearCaptureHistory],

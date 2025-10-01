@@ -158,3 +158,8 @@ export const retainDirFiles = async (dirPath: string, fileNames: string[]) => {
     });
     return result;
 };
+
+export const isAdmin = async () => {
+    const result = await invoke<boolean>('is_admin');
+    return result;
+};

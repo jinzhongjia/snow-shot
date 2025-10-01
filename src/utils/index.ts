@@ -2,6 +2,7 @@ import * as tauriOs from '@tauri-apps/plugin-os';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Base64 } from 'js-base64';
 import { writeTextToClipboard } from './clipboard';
+import { isAdmin } from '@/commands/core';
 
 export const encodeParamsValue = (value: string) => {
     return encodeURIComponent(Base64.encode(value));
@@ -88,5 +89,16 @@ export const randomString = (length: number) => {
     for (let i = length; i > 0; --i) {
         result += RANDOM_STRING_CHARS[Math.floor(Math.random() * RANDOM_STRING_CHARS.length)];
     }
+    return result;
+};
+
+let isAdminResultCache: boolean | undefined = undefined;
+export const isAdminWithCache = async () => {
+    if (isAdminResultCache !== undefined) {
+        return isAdminResultCache;
+    }
+
+    const result = await isAdmin();
+    isAdminResultCache = result;
     return result;
 };
