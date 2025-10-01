@@ -22,7 +22,7 @@ import {
 import React from 'react';
 import { defaultKeyEventSettings, KeyEventKey, KeyEventValue } from '@/core/hotKeys';
 import { TranslationDomain, TranslationType } from '@/services/tools/translation';
-import { autoStartDisable, autoStartEnable, setEnableProxy } from '@/commands/core';
+import { setEnableProxy } from '@/commands/core';
 import {
     ChatApiConfig,
     FOCUS_WINDOW_APP_NAME_ENV_VARIABLE,
@@ -690,7 +690,6 @@ const ContextWrapCore: React.FC<{ children: React.ReactNode }> = ({ children }) 
         [writeAppSettings],
     );
 
-    const hasInitAutoStart = useRef(false);
     const updateAppSettings = useCallback(
         (
             group: AppSettingsGroup,
@@ -1132,25 +1131,6 @@ const ContextWrapCore: React.FC<{ children: React.ReactNode }> = ({ children }) 
                             : (prevSettings?.autoCheckVersion ??
                               defaultAppSettingsData[group].autoCheckVersion),
                 };
-
-                if (process.env.NODE_ENV === 'development') {
-                }
-
-                if (
-                    saveToFile &&
-                    process.env.NODE_ENV !== 'development' &&
-                    (!hasInitAutoStart.current || prevSettings?.autoStart !== settings.autoStart)
-                ) {
-                    hasInitAutoStart.current = true;
-
-                    (async () => {
-                        // 每次启动都重新注册一下
-                        await autoStartEnable();
-                        if (!settings.autoStart) {
-                            await autoStartDisable();
-                        }
-                    })();
-                }
             } else if (group === AppSettingsGroup.SystemChat) {
                 newSettings = newSettings as AppSettingsData[typeof group];
                 const prevSettings = appSettingsRef.current[group] as

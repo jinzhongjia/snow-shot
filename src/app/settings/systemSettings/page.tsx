@@ -41,6 +41,8 @@ import { createLocalConfigDir, getAppConfigBaseDir } from '@/commands/file';
 import { appError } from '@/utils/log';
 import * as dialog from '@tauri-apps/plugin-dialog';
 import { restartWithAdmin } from '@/commands/core';
+import { isAdminWithCache } from '@/utils';
+import { useStateRef } from '@/hooks/useStateRef';
 
 export default function SystemSettings() {
     const intl = useIntl();
@@ -190,6 +192,13 @@ export default function SystemSettings() {
 
     const [currentPlatform] = usePlatform();
 
+    const [isAdmin, setIsAdmin] = useStateRef<boolean>(false);
+    useEffect(() => {
+        isAdminWithCache().then((result) => {
+            setIsAdmin(result);
+        });
+    }, [setIsAdmin]);
+
     return (
         <ContentWrap>
             <GroupTitle
@@ -236,33 +245,6 @@ export default function SystemSettings() {
                                 <Switch />
                             </ProForm.Item>
                         </Col>
-                        {currentPlatform === 'windows' && (
-                            <>
-                                <Col span={12}>
-                                    <ProForm.Item
-                                        label={
-                                            <IconLabel
-                                                label={
-                                                    <FormattedMessage id="settings.systemSettings.commonSettings.useAdminAutoStart" />
-                                                }
-                                                tooltipTitle={
-                                                    <FormattedMessage id="settings.systemSettings.commonSettings.useAdminAutoStart.tip" />
-                                                }
-                                            />
-                                        }
-                                    >
-                                        <Button
-                                            type="default"
-                                            onClick={() => {
-                                                restartWithAdmin();
-                                            }}
-                                        >
-                                            <FormattedMessage id="settings.systemSettings.commonSettings.useAdminAutoStart.enable" />
-                                        </Button>
-                                    </ProForm.Item>
-                                </Col>
-                            </>
-                        )}
                         <Col span={12}>
                             <ProForm.Item
                                 label={
@@ -278,6 +260,39 @@ export default function SystemSettings() {
                                 <Switch />
                             </ProForm.Item>
                         </Col>
+                        {currentPlatform === 'windows' && (
+                            <>
+                                <Col span={12}>
+                                    <ProForm.Item
+                                        label={
+                                            <IconLabel
+                                                label={
+                                                    <FormattedMessage id="settings.systemSettings.commonSettings.adminPermission" />
+                                                }
+                                                tooltipTitle={
+                                                    <FormattedMessage id="settings.systemSettings.commonSettings.adminPermission.tip" />
+                                                }
+                                            />
+                                        }
+                                    >
+                                        {isAdmin ? (
+                                            <div style={{ color: token.colorSuccess }}>
+                                                <FormattedMessage id="settings.systemSettings.commonSettings.adminPermission.enabled" />
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                type="default"
+                                                onClick={() => {
+                                                    restartWithAdmin();
+                                                }}
+                                            >
+                                                <FormattedMessage id="settings.systemSettings.commonSettings.adminPermission.useAdminRestart" />
+                                            </Button>
+                                        )}
+                                    </ProForm.Item>
+                                </Col>
+                            </>
+                        )}
                     </Row>
                 </ProForm>
             </Spin>

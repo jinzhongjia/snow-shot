@@ -59,6 +59,12 @@ export const settings = {
     'settings.systemSettings.commonSettings.useAdminAutoStart': '使用管理员权限重启',
     'settings.systemSettings.commonSettings.useAdminAutoStart.tip':
         '使用管理员启动应用后，如果开启了“开机自动启动”则当应用自动启动时将使用管理员权限启动',
+    'settings.systemSettings.commonSettings.adminPermission': '管理员权限',
+    'settings.systemSettings.commonSettings.adminPermission.enabled': '已启用',
+    'settings.systemSettings.commonSettings.adminPermission.useAdminRestart':
+        '使用管理员权限重启应用',
+    'settings.systemSettings.commonSettings.adminPermission.tip':
+        '应用具有管理员权限的话，全局快捷键能在更多的应用响应，如果开启了“开机自动启动”则当应用自动启动时将使用管理员权限启动',
     'settings.systemSettings.commonSettings.useAdminAutoStart.enable': '重新启动',
     'settings.systemSettings.commonSettings.autoCheckVersion': '自动检查更新',
     'settings.hotKeySettings.translation': '翻译',

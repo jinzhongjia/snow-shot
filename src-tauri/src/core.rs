@@ -260,3 +260,8 @@ pub async fn write_bitmap_image_to_clipboard(
 pub async fn retain_dir_files(dir_path: PathBuf, file_names: Vec<String>) -> Result<(), String> {
     snow_shot_tauri_commands_core::retain_dir_files(dir_path, file_names).await
 }
+
+#[command]
+pub async fn is_admin() -> Result<bool, String> {
+    snow_shot_tauri_commands_core::is_admin().await
+}
