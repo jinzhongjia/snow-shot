@@ -14,7 +14,7 @@ members = [
 
 [package]
 name = "snow-shot"
-version = "0.4.1-beta"
+version = "0.4.2-beta"
 description = "Simple and elegant screenshot tool"
 authors = ["mg-chao <chao@mgchao.top>"]
 repository = "https://github.com/mg-chao/snow-shot"
@@ -51,7 +51,7 @@ zune-core = "^0.4"
 scap = { git = "https://github.com/mg-chao/scap", branch = "20250712_custom" }
 objc2 = "0.6.1"
 objc2-app-kit = { version = "0.3.1" }
-uiautomation = "0.23.1"
+uiautomation = "0.24.0"
 macos-accessibility-client = "0.0.1"
 dashmap = "6.1.0"
 
