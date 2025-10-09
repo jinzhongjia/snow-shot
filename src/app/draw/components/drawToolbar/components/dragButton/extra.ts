@@ -98,7 +98,13 @@ export const updateElementPosition = (
     previousRect: ElementRect | undefined,
     cancelOnBeyond: boolean = false,
     contentScale: number = 1,
-    calculatedBoundaryRect: (rect: ElementRect) => ElementRect = (rect) => rect,
+    calculatedBoundaryRect: (
+        rect: ElementRect,
+        toolbarWidth: number,
+        toolbarHeight: number,
+        viewportWidth: number,
+        viewportHeight: number,
+    ) => ElementRect = (rect) => rect,
 ): UpdateElementPositionResult => {
     let { clientWidth: toolbarWidth, clientHeight: toolbarHeight } = element;
 
@@ -118,12 +124,18 @@ export const updateElementPosition = (
         originMousePosition,
         currentMousePosition,
         previousRect,
-        calculatedBoundaryRect({
-            min_x: -baseOffsetX,
-            min_y: -baseOffsetY,
-            max_x: -baseOffsetX + viewportWidth,
-            max_y: -baseOffsetY + viewportHeight,
-        }),
+        calculatedBoundaryRect(
+            {
+                min_x: -baseOffsetX,
+                min_y: -baseOffsetY,
+                max_x: -baseOffsetX + viewportWidth,
+                max_y: -baseOffsetY + viewportHeight,
+            },
+            toolbarWidth,
+            toolbarHeight,
+            viewportWidth,
+            viewportHeight,
+        ),
     );
 
     if (!(cancelOnBeyond && dragRes.isBeyond)) {
