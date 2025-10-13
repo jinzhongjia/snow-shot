@@ -1,3 +1,5 @@
+import { appInfo } from '@/utils/log';
+
 export enum VideoRecordState {
     Idle,
     Recording,
