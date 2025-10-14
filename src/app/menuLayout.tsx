@@ -714,6 +714,12 @@ const MenuLayoutCore: React.FC<{ children: React.ReactNode }> = ({ children }) =
                                 label: intl.formatMessage({ id: 'settings.chatSettings' }),
                             },
                             {
+                                key: 'coreSettings',
+                                label: intl.formatMessage({
+                                    id: 'settings.systemSettings.coreSettings',
+                                }),
+                            },
+                            {
                                 key: 'dataFile',
                                 label: intl.formatMessage({
                                     id: 'settings.systemSettings.dataFile',
@@ -847,7 +853,8 @@ export const MenuLayoutProvider = ({ children }: { children: React.ReactNode }) 
             pathname === '/fullScreenDraw' ||
             pathname === '/fullScreenDraw/switchMouseThrough' ||
             pathname === '/videoRecord' ||
-            pathname === '/videoRecord/toolbar',
+            pathname === '/videoRecord/toolbar' ||
+            pathname === '/idle',
         [pathname],
     );
     const mainWindow = !noLayout;
