@@ -16,7 +16,6 @@ import { EventListener } from '@/components/eventListener';
 import { AppSettingsContextProvider } from '@/components/appSettingsContextProvider';
 import { TextScaleFactorProvider } from '@/components/textScaleFactorContextProvider';
 import { AntdContextProvider } from '@/components/antdContextProvider';
-import { AntdStyleRegistry } from '@/components/antdStyleRegistry';
 
 export default function RootLayout({
     children,
@@ -61,27 +60,25 @@ export default function RootLayout({
             <body>
                 <AntdApp>
                     <StyledJsxRegistry>
-                        <AntdStyleRegistry>
-                            <AntdRegistry>
-                                <MenuLayoutContextProvider>
-                                    <PluginServiceContextProvider>
-                                        <AppSettingsContextProvider>
-                                            <TextScaleFactorProvider>
-                                                <AntdContextProvider>
-                                                    <FetchErrorHandler>
-                                                        <HotkeysProvider>
-                                                            <EventListener>
-                                                                <MenuLayout>{children}</MenuLayout>
-                                                            </EventListener>
-                                                        </HotkeysProvider>
-                                                    </FetchErrorHandler>
-                                                </AntdContextProvider>
-                                            </TextScaleFactorProvider>
-                                        </AppSettingsContextProvider>
-                                    </PluginServiceContextProvider>
-                                </MenuLayoutContextProvider>
-                            </AntdRegistry>
-                        </AntdStyleRegistry>
+                        <AntdRegistry>
+                            <MenuLayoutContextProvider>
+                                <PluginServiceContextProvider>
+                                    <AppSettingsContextProvider>
+                                        <TextScaleFactorProvider>
+                                            <AntdContextProvider>
+                                                <FetchErrorHandler>
+                                                    <HotkeysProvider>
+                                                        <EventListener>
+                                                            <MenuLayout>{children}</MenuLayout>
+                                                        </EventListener>
+                                                    </HotkeysProvider>
+                                                </FetchErrorHandler>
+                                            </AntdContextProvider>
+                                        </TextScaleFactorProvider>
+                                    </AppSettingsContextProvider>
+                                </PluginServiceContextProvider>
+                            </MenuLayoutContextProvider>
+                        </AntdRegistry>
                     </StyledJsxRegistry>
                 </AntdApp>
             </body>
