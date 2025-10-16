@@ -4,7 +4,6 @@ import { zIndexs } from '@/utils/zIndex';
 import { CaptureStep, DrawContext } from '../../types';
 import { useCallback, useContext, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Flex, theme } from 'antd';
-import { createStyles } from 'antd-style';
 import React from 'react';
 import { DragButton, DragButtonActionType } from './components/dragButton';
 import { DrawToolbarContext } from './extra';
@@ -93,59 +92,6 @@ export const DrawToolbarStatePublisher = createPublisher<{
     mouseHover: false,
 });
 
-const useStyles = createStyles(({ token }) => ({
-    drawToolbarContainer: {
-        pointerEvents: 'none',
-        userSelect: 'none',
-        position: 'absolute',
-        zIndex: zIndexs.Draw_Toolbar,
-        top: 0,
-        left: 0,
-        '&:hover': {
-            zIndex: zIndexs.Draw_ToolbarHover,
-        },
-        '& .drag-button': {
-            color: token.colorTextQuaternary,
-            cursor: 'move',
-        },
-        '& .draw-toolbar-drag': {
-            fontSize: 18,
-            marginRight: -3,
-            marginLeft: -3,
-        },
-        '& .ant-btn .ant-btn-icon': {
-            fontSize: 24,
-            display: 'flex',
-            alignItems: 'center',
-        },
-    },
-    drawToolbar: {
-        position: 'absolute',
-        opacity: 0,
-        transformOrigin: 'top left',
-        padding: `${token.paddingXXS}px ${token.paddingSM}px`,
-        boxSizing: 'border-box',
-        backgroundColor: token.colorBgContainer,
-        borderRadius: `${token.borderRadiusLG}px`,
-        cursor: 'default',
-        color: token.colorText,
-        boxShadow: `0 0 3px 0px ${token.colorPrimaryHover}`,
-        transition: `opacity ${token.motionDurationMid} ${token.motionEaseInOut}`,
-        zIndex: zIndexs.Draw_Toolbar,
-    },
-    drawToolbarContent: {
-        '& > div': {
-            lineHeight: 0,
-        },
-    },
-    drawToolbarSplitter: {
-        width: 1,
-        height: '0.83em',
-        backgroundColor: token.colorBorder,
-        margin: `0 ${token.marginXXS}px`,
-    },
-}));
-
 const isDrawTool = (drawState: DrawState) => {
     switch (drawState) {
         case DrawState.Rect:
@@ -180,7 +126,6 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
     const { drawCacheLayerActionRef, selectLayerActionRef } = useContext(DrawContext);
 
     const { token } = theme.useToken();
-    const { styles } = useStyles();
     const { message } = useContext(AntdContext);
     const intl = useIntl();
 
@@ -725,7 +670,7 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
 
     return (
         <div
-            className={styles.drawToolbarContainer}
+            className="draw-toolbar-container"
             onMouseDown={handleMouseDown}
             onContextMenu={handleContextMenu}
             ref={drawToolarContainerRef}
@@ -735,11 +680,11 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
                     <div
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
-                        className={styles.drawToolbar}
+                        className="draw-toolbar"
                         onDoubleClick={handleDoubleClick}
                         ref={drawToolbarRef}
                     >
-                        <Flex align="center" gap={token.paddingXS} className={styles.drawToolbarContent}>
+                        <Flex align="center" gap={token.paddingXS} className="draw-toolbar-content">
                             <DragButton actionRef={dragButtonActionRef} />
 
                             {/* 默认状态 */}
@@ -781,7 +726,7 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
                                 </>
                             )}
 
-                            <div className={styles.drawToolbarSplitter} />
+                            <div className="draw-toolbar-splitter" />
 
                             {/* 矩形 */}
                             <RectTool
@@ -871,7 +816,7 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
                             />
 
                             {!customToolbarToolHiddenMap?.[DrawState.Redo] && (
-                                <div className={styles.drawToolbarSplitter} />
+                                <div className="draw-toolbar-splitter" />
                             )}
 
                             <HistoryControls
@@ -879,7 +824,7 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
                                 disable={enableScrollScreenshot}
                             />
 
-                            <div className={styles.drawToolbarSplitter} />
+                            <div className="draw-toolbar-splitter" />
 
                             <ExtraTool
                                 onToolClickAction={onToolClick}
@@ -994,7 +939,7 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
                                 }}
                             />
 
-                            <div className={styles.drawToolbarSplitter} />
+                            <div className="draw-toolbar-splitter" />
 
                             {/* 取消截图 */}
                             <ToolButton
@@ -1038,6 +983,83 @@ const DrawToolbarCore: React.FC<DrawToolbarProps> = ({
                 <HighlightTool />
                 <ScrollScreenshot actionRef={scrollScreenshotToolActionRef} />
             </DrawToolbarContext.Provider>
+            <style jsx>{`
+                .draw-toolbar-container {
+                    pointer-events: none;
+                    user-select: none;
+                    position: absolute;
+                    z-index: ${zIndexs.Draw_Toolbar};
+                    top: 0;
+                    left: 0;
+                }
+
+                .draw-toolbar-container:hover {
+                    z-index: ${zIndexs.Draw_ToolbarHover};
+                }
+
+                .draw-toolbar {
+                    position: absolute;
+                    opacity: 0;
+                    transform-origin: top left;
+                }
+
+                :global(.draw-toolbar-content > div) {
+                    line-height: 0;
+                }
+
+                .draw-toolbar {
+                    padding: ${token.paddingXXS}px ${token.paddingSM}px;
+                    box-sizing: border-box;
+                    background-color: ${token.colorBgContainer};
+                    border-radius: ${token.borderRadiusLG}px;
+                    cursor: default; /* 防止非拖动区域也变成可拖动状态 */
+                    color: ${token.colorText};
+                    box-shadow: 0 0 3px 0px ${token.colorPrimaryHover};
+                    transition: opacity ${token.motionDurationMid} ${token.motionEaseInOut};
+                    z-index: ${zIndexs.Draw_Toolbar};
+                }
+
+                .draw-subtoolbar {
+                    opacity: 0;
+                }
+
+                .draw-subtoolbar-container {
+                    position: absolute;
+                    right: 0;
+                    bottom: calc(-100% - ${token.marginXXS}px);
+                    height: 100%;
+                }
+
+                :global(.drag-button) {
+                    color: ${token.colorTextQuaternary};
+                    cursor: move;
+                }
+
+                .draw-toolbar :global(.draw-toolbar-drag) {
+                    font-size: 18px;
+                    margin-right: -3px;
+                    margin-left: -3px;
+                }
+
+                .draw-toolbar-container :global(.ant-btn) :global(.ant-btn-icon) {
+                    font-size: 24px;
+                    display: flex;
+                    align-items: center;
+                }
+
+                .draw-toolbar-container :global(.ant-btn-icon) {
+                    display: flex;
+                    align-items: center;
+                }
+
+                .draw-toolbar-container :global(.draw-toolbar-splitter),
+                .draw-toolbar-splitter {
+                    width: 1px;
+                    height: 0.83em;
+                    background-color: ${token.colorBorder};
+                    margin: 0 ${token.marginXXS}px;
+                }
+            `}</style>
         </div>
     );
 };

@@ -1,6 +1,5 @@
 import { RouteMapItem } from '@/types/components/menuLayout';
-import { Tabs, TabsProps } from 'antd';
-import { createStyles } from 'antd-style';
+import { Tabs, TabsProps, theme } from 'antd';
 import { debounce } from 'es-toolkit';
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 
@@ -8,24 +7,11 @@ export type PageNavActionType = {
     updateActiveKey: (scrollTop: number) => void;
 };
 
-const useStyles = createStyles(({ token }, props: { hideTabs?: boolean }) => ({
-    pageNav: {
-        display: props.hideTabs ? 'none' : undefined,
-        '& .ant-tabs': {
-            marginTop: '-12px !important',
-            padding: `0 ${token.padding}px !important`,
-        },
-        '& .ant-tabs-nav-wrap': {
-            height: '32px !important',
-        },
-    },
-}));
-
 export const PageNav: React.FC<{
     tabItems: RouteMapItem;
     actionRef: React.RefObject<PageNavActionType | null>;
 }> = ({ tabItems, actionRef }) => {
-    const { styles } = useStyles({ hideTabs: tabItems.hideTabs });
+    const { token } = theme.useToken();
     const [activeKey, setActiveKey] = useState<string | undefined>(tabItems.items?.[0]?.key);
     const tabItemsRef = useRef<TabsProps['items']>(tabItems.items);
     useEffect(() => {
@@ -94,7 +80,7 @@ export const PageNav: React.FC<{
     );
 
     return (
-        <div className={styles.pageNav}>
+        <div className="page-nav" style={{ display: tabItems.hideTabs ? 'none' : undefined }}>
             <Tabs
                 activeKey={activeKey}
                 items={tabItems.items}
@@ -108,6 +94,17 @@ export const PageNav: React.FC<{
                     setActiveKey(key);
                 }}
             />
+
+            <style jsx>{`
+                .page-nav :global(.ant-tabs) {
+                    margin-top: -12px !important;
+                    padding: 0 ${token.padding}px !important;
+                }
+
+                .page-nav :global(.ant-tabs-nav-wrap) {
+                    height: 32px !important;
+                }
+            `}</style>
         </div>
     );
 };
