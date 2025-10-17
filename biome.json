@@ -14,6 +14,7 @@
 			"src/**/*.jsx",
 			".vscode/**/*.json",
 			"*.json",
+			"src-tauri/**/*.json",
 			"rsbuild.config.ts",
 			"!src/routeTree.gen.ts"
 		]
