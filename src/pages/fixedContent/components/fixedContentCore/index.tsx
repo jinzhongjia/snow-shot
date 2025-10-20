@@ -6,12 +6,12 @@ import {
 	type Window as AppWindow,
 	getCurrentWindow,
 } from "@tauri-apps/api/window";
-import * as clipboard from "@tauri-apps/plugin-clipboard-manager";
 import * as dialog from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import * as TWEEN from "@tweenjs/tween.js";
 import { Button, Descriptions, Space, Typography, theme } from "antd";
 import Color from "color";
+import { toCanvas as htmlToCanvas } from "html-to-image";
 import {
 	useCallback,
 	useContext,
@@ -31,6 +31,7 @@ import {
 	startFreeDrag,
 } from "@/commands/core";
 import { setDrawWindowStyle } from "@/commands/screenshot";
+import { INIT_CONTAINER_KEY } from "@/components/imageLayer/actions";
 import { PLUGIN_ID_RAPID_OCR } from "@/constants/pluginService";
 import { AntdContext } from "@/contexts/antdContext";
 import { AppSettingsPublisher } from "@/contexts/appSettingsActionContext";
@@ -55,7 +56,11 @@ import {
 	type CommonKeyEventValue,
 } from "@/types/core/commonKeyEvent";
 import { ImageFormat } from "@/types/utils/file";
-import { writeHtmlToClipboard, writeTextToClipboard } from "@/utils/clipboard";
+import {
+	writeHtmlToClipboard,
+	writeImageToClipboard,
+	writeTextToClipboard,
+} from "@/utils/clipboard";
 import { generateImageFileName } from "@/utils/file";
 import { formatKey } from "@/utils/format";
 import { appError } from "@/utils/log";
@@ -75,6 +80,10 @@ import {
 	type FixedContentCoreDrawActionType,
 } from "./components/drawLayer";
 import { HandleFocusMode } from "./components/handleFocusMode";
+import {
+	FixedContentImageLayer,
+	type FixedContentImageLayerActionType,
+} from "./components/imageLayer";
 import { ResizeWindow } from "./components/resizeWindow";
 import { getHtmlContent, getStyleProps } from "./extra";
 
@@ -167,7 +176,7 @@ export const FixedContentCore: React.FC<{
 	onHtmlLoad?: ({ width, height }: { width: number; height: number }) => void;
 	onTextLoad?: (container: HTMLDivElement | null) => void;
 	onImageLoad?: (
-		image: HTMLImageElement | null,
+		container: { naturalWidth: number; naturalHeight: number },
 		monitorInfo: MonitorInfo,
 	) => void;
 	disabled?: boolean;
@@ -219,12 +228,8 @@ export const FixedContentCore: React.FC<{
 		scaleFactor: 1,
 		ignoreTextScaleFactor: false,
 	});
-	const canvasElementContainerRef = useRef<HTMLDivElement>(null);
-	const [canvasElement, setCanvasElement, canvasElementRef] = useStateRef<
-		HTMLCanvasElement | undefined
-	>(undefined);
-	const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
-	const imageBlobRef = useRef<Blob | undefined>(undefined);
+	const canvasElementRef = useRef<HTMLCanvasElement | undefined>(undefined);
+	const imageUrlRef = useRef<string | undefined>(undefined);
 	const [scale, setScale, scaleRef] = useStateRef<{
 		x: number;
 		y: number;
@@ -245,13 +250,232 @@ export const FixedContentCore: React.FC<{
 	const [isAlwaysOnTop, setIsAlwaysOnTop] = useStateRef(true);
 	const dragRegionMouseDownMousePositionRef = useRef<MousePosition>(undefined);
 
+	const [textContent, setTextContent, textContentRef] = useStateRef<
+		| {
+				content: string;
+				colorText:
+					| {
+							color: string;
+							rgb: string;
+							hex: string;
+							hsl: string;
+					  }
+					| undefined;
+		  }
+		| undefined
+	>(undefined);
+	const textContentContainerRef = useRef<HTMLDivElement>(null);
+
 	const [textScaleFactor] = useTextScaleFactor();
 	const contentScaleFactor = useMemo(() => {
-		if (canvasElement || imageUrl) {
+		if (
+			fixedContentType === FixedContentType.DrawCanvas ||
+			fixedContentType === FixedContentType.Image
+		) {
 			return textScaleFactor;
 		}
 		return 1;
-	}, [canvasElement, imageUrl, textScaleFactor]);
+	}, [fixedContentType, textScaleFactor]);
+
+	const [processImageConfig, setProcessImageConfig, processImageConfigRef] =
+		useStateRef<FixedContentProcessImageConfig>({
+			angle: 0,
+			horizontalFlip: false,
+			verticalFlip: false,
+		});
+	const renderToCanvas = useCallback(
+		async (ignoreDrawCanvas: boolean = false) => {
+			return renderToCanvasAction(
+				imageLayerActionRef,
+				drawActionRef,
+				processImageConfigRef,
+				ignoreDrawCanvas,
+			);
+		},
+		[processImageConfigRef],
+	);
+
+	const copyRawToClipboard = useCallback(async () => {
+		if (
+			fixedContentTypeRef.current === FixedContentType.DrawCanvas ||
+			fixedContentTypeRef.current === FixedContentType.Image
+		) {
+			const imageLayerAction =
+				imageLayerActionRef.current?.getImageLayerAction();
+			if (!imageLayerAction) {
+				return;
+			}
+			const baseImageBuffer = await imageLayerAction.renderToPng(
+				{
+					min_x: 0,
+					min_y: 0,
+					max_x: canvasPropsRef.current.width,
+					max_y: canvasPropsRef.current.height,
+				},
+				INIT_CONTAINER_KEY,
+			);
+
+			if (!baseImageBuffer) {
+				return;
+			}
+
+			await writeImageToClipboard(baseImageBuffer);
+		} else if (
+			fixedContentTypeRef.current === FixedContentType.Html &&
+			originHtmlContentRef.current
+		) {
+			await writeHtmlToClipboard(originHtmlContentRef.current);
+		} else if (
+			fixedContentTypeRef.current === FixedContentType.Text &&
+			textContentRef.current
+		) {
+			await writeTextToClipboard(textContentRef.current.content);
+		}
+	}, [fixedContentTypeRef, textContentRef]);
+
+	const hasInitImageLayerRef = useRef(false);
+	const tryInitImageLayer = useCallback(
+		async (isHtmlTextLoad: boolean = false) => {
+			if (hasInitImageLayerRef.current) {
+				return;
+			}
+
+			if (!imageLayerActionRef.current) {
+				return;
+			}
+
+			if (fixedContentTypeRef.current === FixedContentType.DrawCanvas) {
+				if (!canvasElementRef.current) {
+					return;
+				}
+				hasInitImageLayerRef.current = true;
+
+				await imageLayerActionRef.current.initImageLayer(
+					canvasPropsRef.current.width,
+					canvasPropsRef.current.height,
+				);
+
+				const context = canvasElementRef.current.getContext("2d");
+				if (!context) {
+					return;
+				}
+				const imageData = context.getImageData(
+					0,
+					0,
+					canvasElementRef.current.width,
+					canvasElementRef.current.height,
+				);
+				await imageLayerActionRef.current.setBaseImage(imageData);
+
+				// 清除 canvas 的数据
+				canvasElementRef.current = undefined;
+
+				if (
+					getAppSettings()[AppSettingsGroup.FunctionFixedContent]
+						.autoCopyToClipboard
+				) {
+					copyRawToClipboard();
+				}
+			} else if (fixedContentTypeRef.current === FixedContentType.Image) {
+				if (!imageUrlRef.current) {
+					return;
+				}
+				hasInitImageLayerRef.current = true;
+
+				const baseImageSize =
+					await imageLayerActionRef.current.initBaseImageTexture(
+						imageUrlRef.current,
+					);
+
+				const monitorInfo = await getCurrentMonitorInfo();
+				onImageLoad?.(
+					{
+						naturalWidth: baseImageSize.width,
+						naturalHeight: baseImageSize.height,
+					},
+					monitorInfo,
+				);
+
+				const imageWidth =
+					baseImageSize.width / monitorInfo.monitor_scale_factor;
+				const imageHeight =
+					baseImageSize.height / monitorInfo.monitor_scale_factor;
+
+				setWindowSize({
+					width: imageWidth,
+					height: imageHeight,
+				});
+				canvasPropsRef.current = {
+					width: baseImageSize.width,
+					height: baseImageSize.height,
+					scaleFactor: monitorInfo.monitor_scale_factor,
+					ignoreTextScaleFactor: false,
+				};
+
+				await imageLayerActionRef.current.initImageLayer(
+					canvasPropsRef.current.width,
+					canvasPropsRef.current.height,
+				);
+
+				await imageLayerActionRef.current.setBaseImage({
+					type: "base_image_texture",
+				});
+				// 清除 imageUrl
+				URL.revokeObjectURL(imageUrlRef.current);
+				imageUrlRef.current = undefined;
+			} else if (
+				fixedContentTypeRef.current === FixedContentType.Html ||
+				fixedContentTypeRef.current === FixedContentType.Text
+			) {
+				if (!isHtmlTextLoad) {
+					return;
+				}
+
+				if (
+					!htmlContentContainerRef.current?.contentWindow?.document.body &&
+					!textContentContainerRef.current
+				) {
+					return;
+				}
+				hasInitImageLayerRef.current = true;
+
+				const sourceCanvas = await htmlToCanvas(
+					htmlContentContainerRef.current?.contentWindow?.document.body ??
+						textContentContainerRef.current ??
+						document.body,
+				);
+				if (!sourceCanvas) {
+					return;
+				}
+
+				copyToClipboardDrawAction(sourceCanvas, undefined, undefined);
+
+				await imageLayerActionRef.current.initImageLayer(
+					sourceCanvas.width,
+					sourceCanvas.height,
+				);
+
+				const context = sourceCanvas.getContext("2d");
+				if (!context) {
+					return;
+				}
+				const imageData = context.getImageData(
+					0,
+					0,
+					sourceCanvas.width,
+					sourceCanvas.height,
+				);
+				await imageLayerActionRef.current.setBaseImage(imageData);
+			}
+		},
+		[
+			fixedContentTypeRef,
+			onImageLoad,
+			setWindowSize,
+			copyRawToClipboard,
+			getAppSettings,
+		],
+	);
 
 	const [htmlContent, setHtmlContent] = useState<string | undefined>(undefined);
 	const originHtmlContentRef = useRef<string | undefined>(undefined);
@@ -305,21 +529,6 @@ export const FixedContentCore: React.FC<{
 		[setFixedContentType],
 	);
 
-	const [textContent, setTextContent, textContentRef] = useStateRef<
-		| {
-				content: string;
-				colorText:
-					| {
-							color: string;
-							rgb: string;
-							hex: string;
-							hsl: string;
-					  }
-					| undefined;
-		  }
-		| undefined
-	>(undefined);
-	const textContentContainerRef = useRef<HTMLDivElement>(null);
 	const initText = useCallback(
 		(textContent: string) => {
 			setFixedContentType(FixedContentType.Text);
@@ -372,6 +581,7 @@ export const FixedContentCore: React.FC<{
 				}
 
 				setTimeout(() => {
+					tryInitImageLayer(true);
 					onTextLoad?.(textContentContainerRef.current);
 
 					if (textContentContainerRef.current) {
@@ -393,7 +603,13 @@ export const FixedContentCore: React.FC<{
 				}, timeout);
 			}, 17);
 		},
-		[setFixedContentType, setTextContent, onTextLoad, setWindowSize],
+		[
+			setFixedContentType,
+			setTextContent,
+			onTextLoad,
+			setWindowSize,
+			tryInitImageLayer,
+		],
 	);
 
 	const initOcrParams = useRef<OcrResultInitDrawCanvasParams | undefined>(
@@ -407,40 +623,20 @@ export const FixedContentCore: React.FC<{
 			setFixedContentType(FixedContentType.Image);
 
 			if (typeof imageContent === "string") {
-				setImageUrl(imageContent);
+				imageUrlRef.current = imageContent;
 			} else {
-				setImageUrl(URL.createObjectURL(imageContent));
-				imageBlobRef.current = imageContent;
+				imageUrlRef.current = URL.createObjectURL(imageContent);
 			}
 
 			imageOcrSignRef.current = false;
+
+			tryInitImageLayer();
 		},
-		[setFixedContentType],
+		[setFixedContentType, tryInitImageLayer],
 	);
 
 	const drawActionRef = useRef<FixedContentCoreDrawActionType | undefined>(
 		undefined,
-	);
-	const [processImageConfig, setProcessImageConfig, processImageConfigRef] =
-		useStateRef<FixedContentProcessImageConfig>({
-			angle: 0,
-			horizontalFlip: false,
-			verticalFlip: false,
-		});
-	const renderToCanvas = useCallback(
-		async (ignoreDrawCanvas: boolean = false) => {
-			return renderToCanvasAction(
-				fixedContentTypeRef,
-				canvasElementRef,
-				imageRef,
-				htmlContentContainerRef,
-				textContentContainerRef,
-				drawActionRef,
-				processImageConfigRef,
-				ignoreDrawCanvas,
-			);
-		},
-		[fixedContentTypeRef, processImageConfigRef, canvasElementRef],
 	);
 
 	const renderToBlob = useCallback(
@@ -456,37 +652,6 @@ export const FixedContentCore: React.FC<{
 		},
 		[renderToCanvas],
 	);
-
-	const copyRawToClipboard = useCallback(async () => {
-		if (fixedContentTypeRef.current === FixedContentType.DrawCanvas) {
-			if (!canvasElementRef.current) {
-				return;
-			}
-
-			await copyToClipboardDrawAction(
-				canvasElementRef.current,
-				undefined,
-				undefined,
-			);
-		} else if (
-			fixedContentTypeRef.current === FixedContentType.Html &&
-			originHtmlContentRef.current
-		) {
-			await writeHtmlToClipboard(originHtmlContentRef.current);
-		} else if (
-			fixedContentTypeRef.current === FixedContentType.Text &&
-			textContentRef.current
-		) {
-			await writeTextToClipboard(textContentRef.current.content);
-		} else if (fixedContentTypeRef.current === FixedContentType.Image) {
-			const canvasBlob = await renderToBlob(true);
-			if (!canvasBlob) {
-				return;
-			}
-
-			await clipboard.writeImage(await canvasBlob.arrayBuffer());
-		}
-	}, [fixedContentTypeRef, textContentRef, renderToBlob, canvasElementRef]);
 
 	const { isReady, isReadyStatus } = usePluginServiceContext();
 	const initDraw = useCallback(
@@ -537,14 +702,8 @@ export const FixedContentCore: React.FC<{
 				setBorderRadius(selectRectParams.radius / scaleFactor);
 			}
 
-			setCanvasElement(canvas);
-			if (canvasElementContainerRef.current) {
-				canvasElementContainerRef.current.appendChild(canvas);
-			} else {
-				appError(
-					"[FixedContentCore] canvasElementContainerRef.current is null",
-				);
-			}
+			canvasElementRef.current = canvas;
+			tryInitImageLayer();
 			if (ocrResultActionRef.current) {
 				if (params.ocrResult) {
 					// 原有的 OCR 结果不包含阴影，加个偏移
@@ -589,23 +748,15 @@ export const FixedContentCore: React.FC<{
 			}
 
 			onDrawLoad?.();
-
-			if (
-				getAppSettings()[AppSettingsGroup.FunctionFixedContent]
-					.autoCopyToClipboard
-			) {
-				copyRawToClipboard();
-			}
 		},
 		[
-			copyRawToClipboard,
-			getAppSettings,
 			setEnableSelectText,
 			setFixedContentType,
 			setWindowSize,
 			isReady,
 			onDrawLoad,
-			setCanvasElement,
+			tryInitImageLayer,
+			getAppSettings,
 		],
 	);
 
@@ -1553,6 +1704,8 @@ export const FixedContentCore: React.FC<{
 					scaleFactor: window.devicePixelRatio,
 					ignoreTextScaleFactor: true,
 				};
+
+				tryInitImageLayer(true);
 			} else if (type === "contextMenu") {
 				// 处理来自iframe的右键菜单事件
 				const syntheticEvent = {
@@ -1601,6 +1754,7 @@ export const FixedContentCore: React.FC<{
 		disabled,
 		fixedContentType,
 		onScrollDown,
+		tryInitImageLayer,
 	]);
 
 	useHotkeys(
@@ -1856,6 +2010,14 @@ export const FixedContentCore: React.FC<{
 		[getWindowPhysicalSize, setScale, showScaleInfoTemporary],
 	);
 
+	const imageLayerActionRef = useRef<
+		FixedContentImageLayerActionType | undefined
+	>(undefined);
+
+	const onImageLayerReady = useCallback(() => {
+		tryInitImageLayer();
+	}, [tryInitImageLayer]);
+
 	return (
 		<div
 			className="fixed-image-container"
@@ -1864,10 +2026,7 @@ export const FixedContentCore: React.FC<{
 				width: `${documentSize.width}px`,
 				height: `${documentSize.height}px`,
 				zIndex: zIndexs.Draw_FixedImage,
-				pointerEvents:
-					canvasElement || htmlContent || textContent || imageUrl
-						? "auto"
-						: "none",
+				pointerEvents: disabled ? "none" : "auto",
 				opacity: isThumbnail ? 0.72 : contentOpacity,
 				userSelect: isThumbnail || !enableSelectText ? "none" : undefined,
 			}}
@@ -1899,58 +2058,25 @@ export const FixedContentCore: React.FC<{
 					}}
 				/>
 
-				{!(imageUrl || htmlContent || textContent) && (
-					<div
-						ref={canvasElementContainerRef}
-						className="fixed-canvas-element-container"
-						style={{
-							...getStyleProps(
-								(windowSize.width * scale.x) / 100 / contentScaleFactor,
-								(windowSize.height * scale.y) / 100 / contentScaleFactor,
-								processImageConfig,
-							),
-							display: canvasElement ? "block" : "none",
-						}}
+				<div
+					className="fixed-image-layer-container"
+					style={{
+						...getStyleProps(
+							(windowSize.width * scale.x) / 100 / contentScaleFactor,
+							(windowSize.height * scale.y) / 100 / contentScaleFactor,
+							processImageConfig,
+						),
+						opacity:
+							fixedContentType === FixedContentType.Html && !enableDraw
+								? 0
+								: undefined,
+					}}
+				>
+					<FixedContentImageLayer
+						actionRef={imageLayerActionRef}
+						onImageLayerReady={onImageLayerReady}
 					/>
-				)}
-
-				{imageUrl && (
-					<img
-						src={imageUrl || ""}
-						ref={imageRef}
-						style={{
-							objectFit: "contain",
-							...getStyleProps(
-								(windowSize.width * scale.x) / 100 / contentScaleFactor,
-								(windowSize.height * scale.y) / 100 / contentScaleFactor,
-								processImageConfig,
-							),
-						}}
-						crossOrigin="anonymous"
-						alt="fixed-canvas-image"
-						onLoad={async (event) => {
-							const image = event.target as HTMLImageElement;
-							const monitorInfo = await getCurrentMonitorInfo();
-							onImageLoad?.(image, monitorInfo);
-
-							const imageWidth =
-								image.naturalWidth / monitorInfo.monitor_scale_factor;
-							const imageHeight =
-								image.naturalHeight / monitorInfo.monitor_scale_factor;
-
-							setWindowSize({
-								width: imageWidth,
-								height: imageHeight,
-							});
-							canvasPropsRef.current = {
-								width: image.naturalWidth,
-								height: image.naturalHeight,
-								scaleFactor: monitorInfo.monitor_scale_factor,
-								ignoreTextScaleFactor: false,
-							};
-						}}
-					/>
-				)}
+				</div>
 
 				{htmlContent && (
 					<iframe
@@ -1971,7 +2097,12 @@ export const FixedContentCore: React.FC<{
 							height: undefined,
 							zIndex: enableSelectText ? 1 : "unset",
 							position: "absolute",
+							top: 0,
+							left: 0,
+							right: 0,
+							bottom: 0,
 							backgroundColor: token.colorBgContainer,
+							opacity: enableDraw ? 0 : undefined,
 						}}
 						ref={htmlContentContainerRef}
 						srcDoc={getHtmlContent(token, htmlContent)}
@@ -1997,6 +2128,11 @@ export const FixedContentCore: React.FC<{
 							height: undefined,
 							zIndex: enableSelectText ? 1 : "unset",
 							position: "absolute",
+							top: 0,
+							left: 0,
+							right: 0,
+							bottom: 0,
+							opacity: enableDraw ? 0 : undefined,
 						}}
 						onMouseDown={(event) => {
 							event.stopPropagation();
@@ -2191,9 +2327,7 @@ export const FixedContentCore: React.FC<{
                     background-color: ${token.colorError} !important;
                 }
 
-                .fixed-canvas-element-container > :global(canvas) {
-                    width: 100%;
-                    height: 100%;
+                .fixed-image-layer-container {
                 }
 
                 .fixed-image-container-inner {
