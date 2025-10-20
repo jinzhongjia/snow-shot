@@ -27,10 +27,13 @@ import {
 	type DrawCoreContextValue,
 	DrawStatePublisher,
 	ExcalidrawEventPublisher,
+	ExcalidrawOnHandleEraserPublisher,
 } from "@/components/drawCore/extra";
+import type { ImageLayerActionType } from "@/components/imageLayer";
 import { withStatePublisher } from "@/hooks/useStatePublisher";
 import { useStateSubscriber } from "@/hooks/useStateSubscriber";
 import { EnableKeyEventPublisher } from "@/pages/draw/components/drawToolbar/components/keyEventWrap/extra";
+import type { SelectRectParams } from "@/pages/draw/components/selectLayer";
 import {
 	DrawContext,
 	type DrawContextType,
@@ -65,7 +68,18 @@ const DrawLayerCore: React.FC<{
 	disabled?: boolean;
 	hidden?: boolean;
 	onConfirm: () => void;
-}> = ({ actionRef, documentSize, scaleInfo, disabled, hidden, onConfirm }) => {
+	getImageLayerAction: () => ImageLayerActionType | undefined;
+	getSelectRectParams: () => SelectRectParams | undefined;
+}> = ({
+	actionRef,
+	documentSize,
+	scaleInfo,
+	disabled,
+	hidden,
+	onConfirm,
+	getImageLayerAction,
+	getSelectRectParams,
+}) => {
 	const { token } = theme.useToken();
 
 	const drawToolbarActionRef = useRef<
@@ -271,8 +285,11 @@ const DrawLayerCore: React.FC<{
 			setTool: (drawState: DrawState) => {
 				drawToolbarActionRef.current?.setTool(drawState);
 			},
+			getImageLayerAction,
+			getDrawLayerAction: () => drawCoreActionRef.current,
+			getSelectRectParams,
 		};
-	}, []);
+	}, [getImageLayerAction, getSelectRectParams]);
 
 	const onMouseEvent = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
@@ -418,5 +435,6 @@ export const DrawLayer = withCanvasHistory(
 		DrawStatePublisher,
 		ExcalidrawEventPublisher,
 		EnableKeyEventPublisher,
+		ExcalidrawOnHandleEraserPublisher,
 	),
 );
