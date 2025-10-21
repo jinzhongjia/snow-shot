@@ -292,7 +292,7 @@ export const ResizeModal: React.FC<{
 				} else {
 					aspectRatioRef.current = undefined;
 				}
-				setQuickSet(null);
+				setQuickSet(value);
 				return;
 			}
 
@@ -380,6 +380,7 @@ export const ResizeModal: React.FC<{
 				}
 
 				setOpen(value);
+				setQuickSet(null);
 			}}
 			modalProps={{ centered: true }}
 			width={500}
