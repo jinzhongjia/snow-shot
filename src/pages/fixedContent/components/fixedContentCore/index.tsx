@@ -1007,15 +1007,23 @@ export const FixedContentCore: React.FC<{
 	);
 
 	const copyToClipboard = useCallback(async () => {
+		if (isThumbnailRef.current) {
+			return;
+		}
+
 		const canvasElement = await renderToCanvas();
 		if (!canvasElement) {
 			return;
 		}
 
 		await copyToClipboardDrawAction(canvasElement, undefined, undefined);
-	}, [renderToCanvas]);
+	}, [renderToCanvas, isThumbnailRef]);
 
 	const saveToFile = useCallback(async () => {
+		if (isThumbnailRef.current) {
+			return;
+		}
+
 		const filePath = await dialog.save({
 			filters: [
 				{
@@ -1040,7 +1048,7 @@ export const FixedContentCore: React.FC<{
 		}
 
 		await saveFile(filePath, await canvasBlob.arrayBuffer(), ImageFormat.PNG);
-	}, [getAppSettings, renderToBlob]);
+	}, [getAppSettings, renderToBlob, isThumbnailRef]);
 
 	const switchSelectTextCore = useCallback(async () => {
 		if (getSelectTextMode(fixedContentTypeRef.current) === "ocr") {
@@ -1069,13 +1077,17 @@ export const FixedContentCore: React.FC<{
 	}, [setEnableDraw]);
 
 	const switchSelectText = useCallback(async () => {
+		if (isThumbnailRef.current) {
+			return;
+		}
+
 		// 启用绘制时则切换绘制
 		if (enableDrawRef.current) {
 			switchDrawCore();
 		}
 
 		switchSelectTextCore();
-	}, [enableDrawRef, switchSelectTextCore, switchDrawCore]);
+	}, [enableDrawRef, switchSelectTextCore, switchDrawCore, isThumbnailRef]);
 	const switchDraw = useCallback(async () => {
 		if (isThumbnailRef.current) {
 			return;
@@ -1412,6 +1424,7 @@ export const FixedContentCore: React.FC<{
 					accelerator: formatKey(
 						hotkeys?.[CommonKeyEventKey.FixedContentCopyToClipboard]?.hotKey,
 					),
+					enabled: !isThumbnail,
 					action: copyToClipboard,
 				},
 				{
@@ -1425,6 +1438,7 @@ export const FixedContentCore: React.FC<{
 					accelerator: formatKey(
 						hotkeys?.[CommonKeyEventKey.FixedContentSaveToFile]?.hotKey,
 					),
+					enabled: !isThumbnail,
 					action: saveToFile,
 				},
 				isReadyStatus(PLUGIN_ID_RAPID_OCR) ||
@@ -1439,6 +1453,7 @@ export const FixedContentCore: React.FC<{
 								hotkeys?.[CommonKeyEventKey.FixedContentSelectText]?.hotKey,
 							),
 							checked: enableSelectText,
+							enabled: !isThumbnail,
 							action: switchSelectText,
 						}
 					: undefined,
@@ -1638,11 +1653,11 @@ export const FixedContentCore: React.FC<{
 
 				const { menu, focusedWindowMenu, setOpacityMenu, setScaleMenu } =
 					result;
-				Promise.all([
-					focusedWindowMenu?.close(),
-					setOpacityMenu?.close(),
-					setScaleMenu?.close(),
-				]).then(() => menu?.close());
+				menu?.close().finally(() => {
+					focusedWindowMenu?.close();
+					setOpacityMenu?.close();
+					setScaleMenu?.close();
+				});
 			});
 		};
 	}, [initMenu]);
@@ -2460,6 +2475,7 @@ export const FixedContentCore: React.FC<{
                 .fixed-image-layer-container {
                 }
 
+
                 .fixed-image-container-inner {
                     width: calc(${isThumbnail ? "100vw" : `${documentSize.width}px`});
                     height: calc(${isThumbnail ? "100vh" : `${documentSize.height}px`});
@@ -2469,8 +2485,9 @@ export const FixedContentCore: React.FC<{
                     cursor: grab;
                     box-sizing: border-box;
                     pointer-events: ${
-											(enableSelectText || textContent?.colorText) &&
-											!isThumbnail
+											(
+												enableSelectText || textContent?.colorText || enableDraw
+											) && !isThumbnail
 												? "none"
 												: "auto"
 										};
