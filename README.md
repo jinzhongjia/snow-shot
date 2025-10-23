@@ -11,6 +11,9 @@
 <img width="83%" src="/docs/imgs/snow_shot_home.png">
 </div>
 
+[![Lines Of Code](https://tokei.rs/b1/github/mg-chao/snow-shot?category=code)](https://github.com/mg-chao/snow-shot)
+![Downloads](https://img.shields.io/github/downloads/mg-chao/snow-shot/total?label=downloads%20%28GH%29)
+
 ### 软件介绍
 
 Snow Shot 是一款功能完备，纯粹社区驱动的工具软件
