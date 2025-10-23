@@ -13,6 +13,7 @@ import {
 import { defaultWatermarkProps } from "@/pages/draw/components/drawToolbar/components/tools/drawExtraTool/components/watermarkTool";
 import type { CaptureBoundingBoxInfo } from "@/pages/draw/extra";
 import type { ImageSharedBufferData } from "@/pages/draw/tools";
+import type { FixedContentProcessImageConfig } from "@/pages/fixedContent/components/fixedContentCore";
 import type { ElementRect, ImageBuffer } from "@/types/commands/screenshot";
 import type { CaptureHistoryItem } from "@/utils/appStore";
 import { getCaptureHistoryImageAbsPath } from "@/utils/captureHistory";
@@ -20,6 +21,7 @@ import { supportOffscreenCanvas } from "@/utils/environment";
 import { appWarn } from "@/utils/log";
 import {
 	addImageToContainerAction,
+	applyProcessImageConfigToCanvasAction,
 	canvasRenderAction,
 	clearCanvasAction,
 	clearContainerAction,
@@ -183,6 +185,15 @@ export type ImageLayerActionType = {
 	initBaseImageTexture: (
 		imageUrl: string,
 	) => Promise<{ width: number; height: number }>;
+	/**
+	 * 应用图像处理配置到画布
+	 */
+	applyProcessImageConfigToCanvas: (
+		imageContainerKey: string,
+		processImageConfig: FixedContentProcessImageConfig,
+		canvasWidth: number,
+		canvasHeight: number,
+	) => Promise<void>;
 };
 
 export type ImageLayerProps = {
@@ -592,6 +603,30 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({
 		);
 	}, [rendererWorker]);
 
+	const applyProcessImageConfigToCanvas = useCallback<
+		ImageLayerActionType["applyProcessImageConfigToCanvas"]
+	>(
+		async (
+			imageContainerKey: string,
+			processImageConfig: FixedContentProcessImageConfig,
+			canvasWidth: number,
+			canvasHeight: number,
+		) => {
+			await applyProcessImageConfigToCanvasAction(
+				rendererWorker,
+				canvasAppRef,
+				canvasContainerMapRef,
+				blurSpriteMapRef,
+				currentImageTextureRef,
+				imageContainerKey,
+				processImageConfig,
+				canvasWidth,
+				canvasHeight,
+			);
+		},
+		[rendererWorker],
+	);
+
 	useEffect(() => {
 		return () => {
 			disposeCanvas();
@@ -785,6 +820,7 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({
 			initBaseImageTexture,
 			transferImageSharedBuffer,
 			renderImageSharedBufferToPng,
+			applyProcessImageConfigToCanvas,
 		}),
 		[
 			resizeCanvas,
@@ -815,6 +851,7 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({
 			initBaseImageTexture,
 			transferImageSharedBuffer,
 			renderImageSharedBufferToPng,
+			applyProcessImageConfigToCanvas,
 		],
 	);
 
