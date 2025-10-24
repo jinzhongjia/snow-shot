@@ -32,6 +32,7 @@ import {
 } from "@/components/drawCore/extra";
 import type { ImageLayerActionType } from "@/components/imageLayer";
 import { withStatePublisher } from "@/hooks/useStatePublisher";
+import { useStateRef } from "@/hooks/useStateRef";
 import { useStateSubscriber } from "@/hooks/useStateSubscriber";
 import { EnableKeyEventPublisher } from "@/pages/draw/components/drawToolbar/components/keyEventWrap/extra";
 import type { SelectRectParams } from "@/pages/draw/components/selectLayer";
@@ -54,6 +55,7 @@ export type FixedContentCoreDrawActionType = {
 	getToolbarSize: () => { width: number; height: number };
 	getDrawMenuSize: () => { width: number; height: number };
 	getCanvas: () => HTMLCanvasElement | null;
+	tryRenderElements: () => Promise<void>;
 };
 
 const DRAW_MENU_WIDTH = 200;
@@ -78,6 +80,7 @@ const DrawLayerCore: React.FC<{
 	getInitDrawWindowDevicePixelRatio: () => number | undefined;
 	getZoom: () => number;
 	switchDraw: () => void;
+	isImageLayerReady: () => boolean;
 }> = ({
 	actionRef,
 	documentSize,
@@ -92,6 +95,7 @@ const DrawLayerCore: React.FC<{
 	getInitDrawWindowDevicePixelRatio,
 	getZoom,
 	switchDraw,
+	isImageLayerReady,
 }) => {
 	const { token } = theme.useToken();
 
@@ -113,7 +117,8 @@ const DrawLayerCore: React.FC<{
 		scaleInfoRef.current = scaleInfo;
 	}, [scaleInfo]);
 
-	const [excalidrawReady, setExcalidrawReady] = useState(false);
+	const [excalidrawReady, setExcalidrawReady, excalidrawReadyRef] =
+		useStateRef(false);
 
 	const mousePositionRef = useRef<MousePosition | undefined>(undefined);
 	useEffect(() => {
@@ -361,44 +366,10 @@ const DrawLayerCore: React.FC<{
 		}
 	}, [disabled, activeToolbar]);
 
-	useImperativeHandle(actionRef, () => {
-		return {
-			getToolbarSize: () => {
-				return (
-					drawToolbarActionRef.current?.getSize() ?? {
-						width: 0,
-						height: 0,
-					}
-				);
-			},
-			getDrawMenuSize,
-			getCanvas: () => {
-				if (
-					drawCoreActionRef.current?.getExcalidrawAPI()?.getSceneElements()
-						.length === 0
-				) {
-					return null;
-				}
-
-				return drawCoreActionRef.current?.getCanvas() ?? null;
-			},
-		};
-	}, [getDrawMenuSize]);
-
-	const excalidrawHasLoadRef = useRef(false);
-	const excalidrawAppStateStoreReadyRef = useRef(false);
-	const tryShowExcalidraw = useCallback(async () => {
-		if (
-			!excalidrawHasLoadRef.current ||
-			!excalidrawAppStateStoreReadyRef.current
-		) {
+	const tryRenderElements = useCallback(async () => {
+		if (!excalidrawReadyRef.current || !isImageLayerReady()) {
 			return;
 		}
-		setExcalidrawReady(true);
-
-		await new Promise((resolve) => {
-			setTimeout(resolve, 17);
-		});
 
 		// 初始化元素
 		const shadowWidth = getInitDrawSelectRectParams()?.shadowWidth ?? 0;
@@ -452,7 +423,48 @@ const DrawLayerCore: React.FC<{
 		getInitDrawSelectRectParams,
 		getInitDrawDrawElements,
 		getInitDrawWindowDevicePixelRatio,
+		excalidrawReadyRef,
+		isImageLayerReady,
 	]);
+
+	const excalidrawHasLoadRef = useRef(false);
+	const excalidrawAppStateStoreReadyRef = useRef(false);
+	const tryShowExcalidraw = useCallback(async () => {
+		if (
+			!excalidrawHasLoadRef.current ||
+			!excalidrawAppStateStoreReadyRef.current
+		) {
+			return;
+		}
+		setExcalidrawReady(true);
+
+		tryRenderElements();
+	}, [tryRenderElements, setExcalidrawReady]);
+
+	useImperativeHandle(actionRef, () => {
+		return {
+			getToolbarSize: () => {
+				return (
+					drawToolbarActionRef.current?.getSize() ?? {
+						width: 0,
+						height: 0,
+					}
+				);
+			},
+			getDrawMenuSize,
+			getCanvas: () => {
+				if (
+					drawCoreActionRef.current?.getExcalidrawAPI()?.getSceneElements()
+						.length === 0
+				) {
+					return null;
+				}
+
+				return drawCoreActionRef.current?.getCanvas() ?? null;
+			},
+			tryRenderElements,
+		};
+	}, [getDrawMenuSize, tryRenderElements]);
 
 	return (
 		<DrawContext.Provider value={drawContextValue}>

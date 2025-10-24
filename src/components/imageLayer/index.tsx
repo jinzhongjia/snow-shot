@@ -90,6 +90,7 @@ export type ImageLayerActionType = {
 		containerKey: string,
 		imageSrc:
 			| string
+			| ImageBitmap
 			| ImageSharedBufferData
 			| { type: "base_image_texture" }
 			| { type: "shared_buffer_image_texture" },
@@ -153,6 +154,7 @@ export type ImageLayerActionType = {
 	onCaptureReady: (
 		imageSrc: string | undefined,
 		imageBuffer:
+			| ImageBitmap
 			| ImageBuffer
 			| ImageSharedBufferData
 			| { type: "base_image_texture" }
@@ -647,6 +649,7 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({
 		async (
 			imageSrc: string | undefined,
 			imageBuffer:
+				| ImageBitmap
 				| ImageBuffer
 				| ImageSharedBufferData
 				| { type: "base_image_texture" }
@@ -678,6 +681,12 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({
 				"type" in imageBuffer &&
 				imageBuffer.type === "base_image_texture"
 			) {
+				await addImageToContainer(
+					INIT_CONTAINER_KEY,
+					imageBuffer,
+					hideImageSprite,
+				);
+			} else if (imageBuffer instanceof ImageBitmap) {
 				await addImageToContainer(
 					INIT_CONTAINER_KEY,
 					imageBuffer,

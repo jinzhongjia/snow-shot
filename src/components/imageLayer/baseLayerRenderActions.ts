@@ -255,6 +255,7 @@ export const renderAddImageToContainerAction = async (
 	containerKey: string,
 	imageSrc:
 		| string
+		| ImageBitmap
 		| ImageSharedBufferData
 		| { type: "base_image_texture" }
 		| { type: "shared_buffer_image_texture" },
@@ -274,6 +275,8 @@ export const renderAddImageToContainerAction = async (
 			} else if (imageSrc.type === "shared_buffer_image_texture") {
 				texture = sharedBufferImageTextureRef.current;
 			}
+		} else if (imageSrc instanceof ImageBitmap) {
+			texture = PIXI.Texture.from(imageSrc);
 		} else {
 			texture = new PIXI.Texture({
 				source: new PIXI.BufferImageSource({

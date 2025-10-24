@@ -370,19 +370,20 @@ const FixedContentCoreInner: React.FC<{
 				if (!canvasElementRef.current) {
 					return;
 				}
-				hasInitImageLayerRef.current = true;
 
 				const context = canvasElementRef.current.getContext("2d");
 				if (!context) {
 					return;
 				}
-				const imageData = context.getImageData(
-					0,
-					0,
-					canvasElementRef.current.width,
-					canvasElementRef.current.height,
+
+				const imageData = await window.createImageBitmap(
+					canvasElementRef.current,
 				);
+
 				await imageLayerActionRef.current.setBaseImage(imageData);
+
+				hasInitImageLayerRef.current = true;
+				drawActionRef.current?.tryRenderElements();
 
 				// 清除 canvas 的数据
 				canvasElementRef.current = undefined;
@@ -515,12 +516,7 @@ const FixedContentCoreInner: React.FC<{
 				if (!context) {
 					return;
 				}
-				const imageData = context.getImageData(
-					0,
-					0,
-					sourceCanvas.width,
-					sourceCanvas.height,
-				);
+				const imageData = await window.createImageBitmap(sourceCanvas);
 				await imageLayerActionRef.current.setBaseImage(imageData, true);
 			}
 		},
@@ -2256,6 +2252,10 @@ const FixedContentCoreInner: React.FC<{
 		);
 	}, [scaleRef, textScaleFactorRef]);
 
+	const isImageLayerReady = useCallback(() => {
+		return hasInitImageLayerRef.current;
+	}, []);
+
 	let containerOpacity = 0;
 	if (disabled) {
 		containerOpacity = 0;
@@ -2471,6 +2471,7 @@ const FixedContentCoreInner: React.FC<{
 					getInitDrawWindowDevicePixelRatio={getInitDrawWindowDevicePixelRatio}
 					getZoom={getZoom}
 					switchDraw={switchDraw}
+					isImageLayerReady={isImageLayerReady}
 				/>
 			)}
 

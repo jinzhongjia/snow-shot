@@ -7,7 +7,7 @@ import { zIndexs } from "@/utils/zIndex";
 export type FixedContentImageLayerActionType = {
 	setBaseImage: (
 		imageData:
-			| ImageData
+			| ImageBitmap
 			| ImageSharedBufferData
 			| {
 					type: "base_image_texture";
@@ -54,14 +54,10 @@ export const FixedContentImageLayer = ({
 				hideImageSprite,
 				true,
 			);
-		} else if (imageData instanceof ImageData) {
+		} else if (imageData instanceof ImageBitmap) {
 			await imageLayerActionRef.current?.onCaptureReady(
 				undefined,
-				{
-					sharedBuffer: imageData.data,
-					width: imageData.width,
-					height: imageData.height,
-				},
+				imageData,
 				hideImageSprite,
 				true,
 			);

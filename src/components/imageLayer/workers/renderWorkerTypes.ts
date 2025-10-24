@@ -105,6 +105,7 @@ export type BaseLayerRenderAddImageToContainerData = {
 		containerKey: string;
 		imageSrc:
 			| string
+			| ImageBitmap
 			| ImageSharedBufferData
 			| { type: "base_image_texture" }
 			| { type: "shared_buffer_image_texture" };

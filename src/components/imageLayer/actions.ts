@@ -433,6 +433,7 @@ export const addImageToContainerAction = async (
 	containerKey: string,
 	imageSrc:
 		| string
+		| ImageBitmap
 		| ImageSharedBufferData
 		| { type: "base_image_texture" }
 		| { type: "shared_buffer_image_texture" },
@@ -474,6 +475,10 @@ export const addImageToContainerAction = async (
 					};
 					renderWorker.postMessage(AddImageToContainerData);
 				}
+			} else if (imageSrc instanceof ImageBitmap) {
+				renderWorker.postMessage(AddImageToContainerData, {
+					transfer: [imageSrc],
+				});
 			} else {
 				renderWorker.postMessage(AddImageToContainerData);
 			}
