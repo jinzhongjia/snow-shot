@@ -11,6 +11,7 @@ export type ImageSharedBufferData = {
 
 export const getImageBufferFromSharedBuffer = async (
 	transferType: string,
+	manualRelease: boolean = false,
 ): Promise<ImageSharedBufferData | undefined> => {
 	const data = await getWebViewSharedBuffer(undefined, transferType);
 	if (!data) {
@@ -27,11 +28,15 @@ export const getImageBufferFromSharedBuffer = async (
 	);
 
 	const result = {
-		sharedBuffer: new Uint8ClampedArray(buffer.slice(0, imageBytesLength)),
+		sharedBuffer: manualRelease
+			? new Uint8ClampedArray(buffer.slice(0, imageBytesLength))
+			: new Uint8ClampedArray(buffer, 0, imageBytesLength),
 		width,
 		height,
 	};
 
-	releaseWebViewSharedBuffer(buffer);
+	if (!manualRelease) {
+		releaseWebViewSharedBuffer(buffer);
+	}
 	return result;
 };
