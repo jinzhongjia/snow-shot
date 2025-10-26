@@ -69,8 +69,6 @@ export type ChatApiConfig = {
 
 export enum TranslationApiType {
 	DeepL = "translation_api_deepl",
-	/** 使用 Google 公开的 API 进行免费翻译 */
-	GoogleWeb = "translation_api_google_web",
 }
 
 export type TranslationApiConfig = {
@@ -99,6 +97,7 @@ export enum AppSettingsGroup {
 	SystemScrollScreenshot = "systemScrollScreenshot_20250628",
 	FunctionChat = "functionChat",
 	FunctionTranslation = "functionTranslation",
+	FunctionTranslationCache = "functionTranslationCache",
 	FunctionScreenshot = "functionScreenshot",
 	FunctionFullScreenDraw = "functionFullScreenDraw",
 	FunctionOutput = "functionOutput_20250908",
@@ -251,13 +250,7 @@ export type AppSettingsData = {
 	[AppSettingsGroup.Cache]: {
 		menuCollapsed: boolean;
 		chatModel: string;
-		translationType: TranslationType | string;
-		translationDomain: TranslationDomain;
-		targetLanguage: string;
-		ocrTranslateAutoReplace: boolean;
-		ocrTranslateKeepLayout: boolean;
-		/** 翻译时显示进度 */
-		ocrTranslateShowProcess: boolean;
+		chatModelEnableThinking: boolean;
 		colorPickerColorFormatIndex: number;
 		prevImageFormat: ImageFormat;
 		prevSelectRect: ElementRect;
@@ -323,8 +316,18 @@ export type AppSettingsData = {
 		chatApiConfigList: ChatApiConfig[];
 	};
 	[AppSettingsGroup.FunctionTranslation]: {
-		chatPrompt: string;
+		translationSystemPrompt: string;
 		translationApiConfigList: TranslationApiConfig[];
+		sourceLanguage: string;
+		targetLanguage: string;
+		translationDomain: TranslationDomain;
+		translationType: TranslationType | string;
+	};
+	[AppSettingsGroup.FunctionTranslationCache]: {
+		cacheSourceLanguage: string;
+		cacheTargetLanguage: string;
+		cacheTranslationDomain: TranslationDomain;
+		cacheTranslationType: TranslationType | string;
 	};
 	[AppSettingsGroup.FunctionScreenshot]: {
 		/** 选取窗口子元素 */
