@@ -20,6 +20,11 @@ Snow Shot 是一款功能完备，纯粹社区驱动的工具软件
 
 _注意：软件正在快速迭代中，Bug 和使用问题难以避免。且因为尚处测试阶段，非本地功能（如翻译和 AI 对话）的 API 服务可能日后不会兼容旧的客户端，如果你试图寻求一个稳定的工具软件，目前请谨慎选择当前软件。_
 
+
+
+## ⭐ 如果你感觉有所帮助不妨给我们点击star支持一下~
+<img width="1000" height="247" alt="Click Star" src="/docs/imgs/guide-star.webp" />
+
 ### 安装
 
 在 [Github Releases](https://github.com/mg-chao/snow-shot/releases) 选择适合当前操作系统的版本下载，下载完成后安装即可。
