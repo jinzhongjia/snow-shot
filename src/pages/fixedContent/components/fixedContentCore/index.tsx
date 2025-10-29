@@ -71,7 +71,7 @@ import { ImageFormat } from "@/types/utils/file";
 import { writeHtmlToClipboard, writeTextToClipboard } from "@/utils/clipboard";
 import { generateImageFileName } from "@/utils/file";
 import { formatKey } from "@/utils/format";
-import { appError } from "@/utils/log";
+import { appError, appInfo } from "@/utils/log";
 import { MousePosition } from "@/utils/mousePosition";
 import { TweenAnimation } from "@/utils/tweenAnimation";
 import { closeWindowComplete } from "@/utils/window";
@@ -1597,13 +1597,29 @@ const FixedContentCoreInner: React.FC<{
 		| undefined
 	>(undefined);
 	useEffect(() => {
+		const appWindow = getCurrentWindow();
+		const unlisten = appWindow.onCloseRequested(async () => {
+			appInfo("onCloseRequested right click menu", rightClickMenuRef.current);
+			if (rightClickMenuRef.current) {
+				await Promise.all([
+					rightClickMenuRef.current.mainMenu?.close(),
+					rightClickMenuRef.current.focusedWindowMenu?.close(),
+					rightClickMenuRef.current.setOpacityMenu?.close(),
+					rightClickMenuRef.current.setScaleMenu?.close(),
+				]);
+			}
+			rightClickMenuRef.current = undefined;
+		});
+
 		return () => {
+			unlisten.then((fn) => fn());
 			if (rightClickMenuRef.current) {
 				rightClickMenuRef.current.mainMenu?.close();
 				rightClickMenuRef.current.focusedWindowMenu?.close();
 				rightClickMenuRef.current.setOpacityMenu?.close();
 				rightClickMenuRef.current.setScaleMenu?.close();
 			}
+			rightClickMenuRef.current = undefined;
 		};
 	}, []);
 	const createRightClickMenu = useCallback(async (): Promise<
