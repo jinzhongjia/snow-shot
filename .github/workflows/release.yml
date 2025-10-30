@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（例如：v0.7.1）'
+        description: 'Version (e.g. v1.0.0)'
         required: true
         type: string
 
@@ -76,10 +76,7 @@ jobs:
           # macOS Apple Silicon (M1/M2/M3)
           - platform: "macos-latest"
             target: "aarch64-apple-darwin"
-          # macOS Intel
-          - platform: "macos-latest"
-            target: "x86_64-apple-darwin"
-          # Windows x64
+
           - platform: "windows-latest"
             target: "x86_64-pc-windows-msvc"
 
@@ -119,12 +116,45 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      # 安装 yarn
+      - name: Install yarn
+        run: npm install -g yarn
+
+      # 准备 Excalidraw 依赖
+      - name: Clone Excalidraw
+        run: |
+          cd ..
+          git clone https://github.com/mg-chao/excalidraw.git
+          cd excalidraw
+          git checkout custom/master
+        shell: bash
+
+      # 配置 yarn 缓存
+      - name: Setup yarn cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: ../excalidraw/yarn.lock
+
+      # 安装 Excalidraw 依赖
+      - name: Install Excalidraw dependencies
+        run: |
+          cd ../excalidraw
+          yarn install
+          cd ../snow-shot
+        shell: bash
+
       # 安装前端依赖并打包
       - name: Install app dependencies and build web
         run: pnpm install --frozen-lockfile
+      
+      # 构建 Excalidraw
+      - name: Build Excalidraw
+        run: pnpm update:excalidraw
 
       # 下载并配置 onnxruntime (Windows only)
-      - name: Download and setup onnxruntime
+      - name: Download and setup onnxruntime (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
           # 下载 onnxruntime
@@ -147,6 +177,32 @@ jobs:
           Remove-Item -Path "onnxruntime.zip" -Force
           Remove-Item -Path "onnxruntime-temp" -Recurse -Force
         shell: pwsh
+
+      # 下载并配置 onnxruntime (macOS only)
+      - name: Download and setup onnxruntime (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          # 下载 onnxruntime
+          curl -L -o onnxruntime.tgz "https://github.com/supertone-inc/onnxruntime-build/releases/download/v1.22.2/onnxruntime-osx-universal2-static_lib-1.22.2.tgz"
+          
+          # 解压文件
+          mkdir -p onnxruntime-temp
+          tar -xzf onnxruntime.tgz -C onnxruntime-temp
+          
+          # 查找并移动 lib 文件夹到 src-tauri
+          libPath=$(find onnxruntime-temp -type d -name "lib" | head -n 1)
+          if [ -n "$libPath" ]; then
+            cp -r "$libPath" src-tauri/lib
+            echo "Successfully copied lib folder to src-tauri"
+          else
+            echo "Error: lib folder not found in extracted files"
+            exit 1
+          fi
+          
+          # 清理临时文件
+          rm -f onnxruntime.tgz
+          rm -rf onnxruntime-temp
+        shell: bash
 
       # 执行构建，以及推送 github release
       - name: Build the app
