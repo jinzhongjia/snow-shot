@@ -48,7 +48,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
 
       # 发布 Release，使用自定义名称
       - name: Generate changelog
@@ -89,10 +89,10 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
       
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: latest
 
@@ -113,7 +113,7 @@ jobs:
       - name: Setup pnpm cache
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: pnpm
 
       # 安装 yarn

@@ -31,7 +31,6 @@ import {
 	setCurrentWindowAlwaysOnTop,
 	startFreeDrag,
 } from "@/commands/core";
-import { setDrawWindowStyle } from "@/commands/screenshot";
 import { OcrTranslateIcon } from "@/components/icons";
 import { INIT_CONTAINER_KEY } from "@/components/imageLayer/actions";
 import {

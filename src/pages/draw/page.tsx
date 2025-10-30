@@ -27,11 +27,7 @@ import {
 import { setCaptureState } from "@/commands/global_state";
 import { uploadToS3 } from "@/commands/httpServices";
 import { listenKeyStart, listenKeyStop } from "@/commands/listenKey";
-import {
-	captureAllMonitors,
-	setDrawWindowStyle,
-	switchAlwaysOnTop,
-} from "@/commands/screenshot";
+import { captureAllMonitors, switchAlwaysOnTop } from "@/commands/screenshot";
 import {
 	scrollScreenshotClear,
 	scrollScreenshotGetSize,

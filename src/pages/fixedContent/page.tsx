@@ -9,7 +9,6 @@ import {
 	type MonitorInfo,
 	readImageFromClipboard,
 } from "@/commands/core";
-import { setDrawWindowStyle } from "@/commands/screenshot";
 import {
 	scrollScreenshotClear,
 	scrollScreenshotGetImageData,
