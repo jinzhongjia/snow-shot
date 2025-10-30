@@ -148,6 +148,12 @@ jobs:
           cd ../snow-shot
         shell: bash
 
+      # 创建 .env 文件以支持联网功能
+      - name: Create .env file
+        run: |
+          echo "PUBLIC_ONLINE_STATUS=true" > .env
+        shell: bash
+
       # 安装前端依赖并打包
       - name: Install app dependencies and build web
         run: pnpm install --frozen-lockfile
