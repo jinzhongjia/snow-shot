@@ -130,18 +130,21 @@ jobs:
         shell: bash
 
       # 配置 yarn 缓存
-      - name: Setup yarn cache
-        uses: actions/setup-node@v4
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
         with:
-          node-version: 20
-          cache: yarn
-          cache-dependency-path: ../excalidraw/yarn.lock
+          path: |
+            ~/.yarn/cache
+            ~/.cache/yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
       # 安装 Excalidraw 依赖
       - name: Install Excalidraw dependencies
         run: |
           cd ../excalidraw
-          yarn install
+          yarn install --frozen-lockfile
           cd ../snow-shot
         shell: bash
 
