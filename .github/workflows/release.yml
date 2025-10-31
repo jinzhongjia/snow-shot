@@ -84,15 +84,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
-      # 安装 Node.js 和 pnpm
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22.14.0
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          node-version: 20
+      - uses: pnpm/action-setup@v3
+        with:
+          version: latest
 
       # 安装 Rust
       - name: Install Rust stable
@@ -108,10 +106,10 @@ jobs:
           workspaces: src-tauri -> target
 
       # 配置 pnpm 缓存
-      - name: Setup pnpm cache
-        uses: actions/setup-node@v3
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
         with:
-          node-version: 22.14.0
+          node-version: 20
           cache: pnpm
 
       # 安装 yarn
@@ -131,7 +129,7 @@ jobs:
       - name: Setup yarn cache
         uses: actions/setup-node@v4
         with:
-            node-version: 22.14.0
+            node-version: 20
             cache: yarn
 
       # 安装 Excalidraw 依赖
