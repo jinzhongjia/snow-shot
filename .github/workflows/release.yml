@@ -130,15 +130,11 @@ jobs:
         shell: bash
 
       # 配置 yarn 缓存
-      - name: Cache yarn dependencies
-        uses: actions/cache@v4
+      - name: Setup yarn cache
+        uses: actions/setup-node@v4
         with:
-          path: |
-            ~/.yarn/cache
-            ~/.cache/yarn
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+            node-version: 22.14.0
+            cache: yarn
 
       # 安装 Excalidraw 依赖
       - name: Install Excalidraw dependencies
@@ -220,6 +216,8 @@ jobs:
           CI: false
           PLATFORM: ${{ matrix.platform }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ needs.create-release.outputs.app_version }}
           releaseName: Snow Shot ${{ needs.create-release.outputs.app_version }}
