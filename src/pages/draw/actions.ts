@@ -13,7 +13,7 @@ import { type AppSettingsData, AppSettingsGroup } from "@/types/appSettings";
 import { ImageFormat, type ImagePath } from "@/types/utils/file";
 import { writeImageToClipboard } from "@/utils/clipboard";
 import { showImageDialog } from "@/utils/file";
-import { appError } from "@/utils/log";
+import { appError, appInfo } from "@/utils/log";
 import { getPlatform } from "@/utils/platform";
 import { randomString } from "@/utils/random";
 import { getWebViewSharedBuffer } from "@/utils/webview";
@@ -273,6 +273,7 @@ export const fixedToScreen = async (
 		true,
 		INIT_CONTAINER_KEY,
 	);
+	const startTs = performance.now();
 
 	const initPreloadPromise = fixedContentAction.initDrawPreload(
 		selectRectParams.rect.max_x -
@@ -301,8 +302,17 @@ export const fixedToScreen = async (
 		appWindow.setTitle("Snow Shot - Fixed Content"),
 		new Promise((resolve) => {
 			setTimeout(() => {
-				resolve(true);
-			}, 17);
+				if (getPlatform() === "windows") {
+					resolve(true);
+				} else {
+					// macOS 延迟一会，避免过渡异常
+					setTimeout(() => {
+						setTimeout(() => {
+							resolve(true);
+						}, 17);
+					}, 0);
+				}
+			}, 17 * 2);
 		}).then(() => {
 			return setWindowRect(
 				appWindow,
