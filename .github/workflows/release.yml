@@ -43,12 +43,11 @@ jobs:
           git config user.email github-actions@github.com
           git tag -a ${{ steps.vars.outputs.tag }} -m "Release ${{ steps.vars.outputs.tag }}"
           git push origin ${{ steps.vars.outputs.tag }}
-
       # 安装 Node.js
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22.14.0
+          node-version: 20
 
       # 发布 Release，使用自定义名称
       - name: Generate changelog
@@ -84,11 +83,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      # 安装 Node.js 和 pnpm
       - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: pnpm/action-setup@v3
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
         with:
           version: latest
 
@@ -106,7 +109,7 @@ jobs:
           workspaces: src-tauri -> target
 
       # 配置 pnpm 缓存
-      - name: Sync node version and setup cache
+      - name: Setup pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: 20
