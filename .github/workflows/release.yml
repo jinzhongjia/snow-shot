@@ -111,7 +111,7 @@ jobs:
 
       # 配置 pnpm 缓存
       - name: Setup pnpm cache
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: 22.14.0
           cache: pnpm
