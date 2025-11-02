@@ -212,6 +212,21 @@ jobs:
           rm -rf onnxruntime-temp
         shell: bash
 
+      # macOS 专用：配置构建环境
+      - name: Configure build environment (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          # 设置环境变量强制静态链接
+          echo "PKG_CONFIG_ALL_STATIC=1" >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=12.3" >> $GITHUB_ENV
+          
+          # 安装必要的库
+          brew install xz
+          
+          # 设置 pkg-config 路径，确保能找到静态库
+          echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig" >> $GITHUB_ENV
+        shell: bash
+
       # 执行构建，以及推送 github release
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
