@@ -71,6 +71,7 @@ import {
 	type AppFunctionConfig,
 	type AppFunctionGroup,
 } from "@/types/components/appFunction";
+import { appError } from "@/utils/log";
 import { ScreenshotType } from "@/utils/types";
 import { ChangeDelaySeconds } from "./components/changeDelaySeconds";
 
@@ -314,8 +315,15 @@ const GlobalShortcutCore = ({ children }: { children: React.ReactNode }) => {
 						onClick,
 						onKeyChange: async (value: string, prevValue: string) => {
 							if (prevValue) {
-								if (await isRegistered(prevValue)) {
-									await unregister(prevValue);
+								try {
+									if (await isRegistered(prevValue)) {
+										await unregister(prevValue);
+									}
+								} catch (error) {
+									appError(
+										"[GlobalShortcut] unregister prevValue failed",
+										error,
+									);
 								}
 							}
 
@@ -323,8 +331,12 @@ const GlobalShortcutCore = ({ children }: { children: React.ReactNode }) => {
 								return false;
 							}
 
-							if (await isRegistered(value)) {
-								return false;
+							try {
+								if (await isRegistered(value)) {
+									await unregister(value);
+								}
+							} catch (error) {
+								appError("[GlobalShortcut] unregister value failed", error);
 							}
 
 							await register(value, async (event) => {
