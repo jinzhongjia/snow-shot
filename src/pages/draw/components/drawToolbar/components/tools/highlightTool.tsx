@@ -9,7 +9,10 @@ import {
 import { DRAW_LAYER_HIGHLIGHT_CONTAINER_KEY } from "@/components/imageLayer";
 import type { HighlightElementProps } from "@/components/imageLayer/baseLayerRenderActions";
 import { useCallbackAsyncRender } from "@/hooks/useCallbackAsyncRender";
-import { useCallbackRenderSlow } from "@/hooks/useCallbackRender";
+import {
+	useCallbackRender,
+	useCallbackRenderSlow,
+} from "@/hooks/useCallbackRender";
 import { useStateSubscriber } from "@/hooks/useStateSubscriber";
 import {
 	DrawEvent,
@@ -166,12 +169,14 @@ const HighlightToolCore: React.FC = () => {
 						selectRectParams,
 					},
 				);
-				imageLayerAction.canvasRender();
+				await imageLayerAction.canvasRender();
 			}
 		},
 		[getDrawCoreAction, getImageLayerAction, getSelectRectParams, getZoom],
 	);
-	const updateHighlightRender = useCallbackAsyncRender(updateHighlight);
+	const updateHighlightRender = useCallbackRender(
+		useCallbackAsyncRender(updateHighlight),
+	);
 
 	const handleEraser = useCallback(
 		(params: ExcalidrawOnHandleEraserParams | undefined) => {
@@ -200,7 +205,7 @@ const HighlightToolCore: React.FC = () => {
 					id,
 					highlightSprite.props,
 				);
-				imageLayerAction.canvasRender();
+				await imageLayerAction.canvasRender();
 			});
 		},
 		[getImageLayerAction],
