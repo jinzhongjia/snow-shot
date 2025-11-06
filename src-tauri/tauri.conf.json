@@ -2,7 +2,7 @@
 	"$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
 	"productName": "Snow Shot",
 	"mainBinaryName": "snowshot",
-	"version": "0.7.8-beta",
+	"version": "0.7.9-beta",
 	"identifier": "com.chao.snowshot",
 	"build": {
 		"removeUnusedCommands": true,
@@ -67,8 +67,8 @@
 			"certificateThumbprint": null,
 			"digestAlgorithm": "sha256",
 			"webviewInstallMode": {
-				"silent": true,
-				"type": "embedBootstrapper"
+				"type": "fixedRuntime",
+				"path": "Microsoft.WebView2.FixedVersionRuntime.141.0.3537.99.x64"
 			},
 			"nsis": {
 				"template": "./build-configs/installer.nsi",

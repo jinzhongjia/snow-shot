@@ -80,8 +80,14 @@ jobs:
           - platform: "macos-15-intel"
             target: "x86_64-apple-darwin"
 
+          # Windows standard
           - platform: "windows-latest"
             target: "x86_64-pc-windows-msvc"
+
+          # Windows with fixed runtime
+          - platform: "windows-latest"
+            target: "x86_64-pc-windows-msvc"
+            fixedRuntime: true
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -190,6 +196,34 @@ jobs:
           Remove-Item -Path "onnxruntime-temp" -Recurse -Force
         shell: pwsh
 
+      # 下载并配置 WebView2 Fixed Runtime (Windows fixedRuntime only)
+      - name: Download and setup WebView2 Fixed Runtime
+        if: matrix.platform == 'windows-latest' && matrix.fixedRuntime == true
+        run: |
+          # 下载 WebView2 Fixed Runtime v141.0.3537.99
+          $runtimeVersion = "141.0.3537.99"
+          $cabUrl = "https://github.com/mg-chao/snow-shot-webview-runtime/releases/download/v141.0.3537.99/Microsoft.WebView2.FixedVersionRuntime.141.0.3537.99.x64.cab"
+          $cabFile = "Microsoft.WebView2.FixedVersionRuntime.$runtimeVersion.x64.cab"
+          
+          Write-Host "Downloading WebView2 Fixed Runtime $runtimeVersion..."
+          Invoke-WebRequest -Uri $cabUrl -OutFile $cabFile
+          
+          # 解压 cab 文件到 src-tauri 目录
+          Write-Host "Extracting WebView2 Fixed Runtime..."
+          $targetDir = ".\src-tauri\Microsoft.WebView2.FixedVersionRuntime.$runtimeVersion.x64"
+          
+          # 创建目标目录
+          New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
+          
+          # 使用 expand 命令解压
+          Expand -F:* $cabFile $targetDir
+          
+          Write-Host "Successfully extracted WebView2 Fixed Runtime to $targetDir"
+          
+          # 清理临时文件
+          Remove-Item -Path $cabFile -Force
+        shell: pwsh
+
       # 下载并配置 onnxruntime (macOS only)
       - name: Download and setup onnxruntime (macOS)
         if: runner.os == 'macOS'
@@ -243,7 +277,7 @@ jobs:
         with:
           tagName: ${{ needs.create-release.outputs.app_version }}
           releaseName: Snow Shot ${{ needs.create-release.outputs.app_version }}
-          releaseBody: ""
+          releaseBody: "最新版 Windows 的 WebView 在 4K 分辨率及以上的显示器（或多个显示器组合）上存在渲染性能问题，请尝试使用 fixedRuntime 版本修复"
           releaseDraft: true
           prerelease: false
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} ${{ matrix.fixedRuntime == true && '--config src-tauri/tauri.fixedRuntime.conf.json' || '' }}
